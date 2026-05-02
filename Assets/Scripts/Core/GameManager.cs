@@ -3,12 +3,16 @@ using UnityEngine;
 /// <summary>
 /// GameManager – Core game state controller.
 ///
-/// Responsibilities:
-///   - Tracks whether the game is currently running or over.
-///   - Exposes a public IsGameOver property that other scripts read.
-///   - Provides a public GameOver() method; other scripts call this
-///     when they detect a loss condition (e.g. enemy touches player).
-///   - GameOver() is guarded so it executes only once per session.
+/// Phase 1 responsibilities (preserved):
+///   - Tracks game over state via IsGameOver.
+///   - Provides GameOver() that runs only once.
+///
+/// Phase 2 additions:
+///   - Tracks score and combo.
+///   - RegisterHit(baseScore) : increases combo, calculates score gain, logs result.
+///   - RegisterMiss()         : resets combo, logs miss.
+///   - ResetCombo()           : utility to zero out combo externally if needed.
+///   - GameOver() now also logs Final Score and Final Combo.
 ///
 /// Scene setup:
 ///   Attach this script to the "GameManager" empty GameObject in MainScene.
@@ -20,20 +24,23 @@ public class GameManager : MonoBehaviour
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Static reference so any script can call GameManager.Instance.IsGameOver
-    /// without needing a serialized field link in the Inspector.
+    /// Static reference so any script can reach GameManager without
+    /// a serialized field in the Inspector.
     /// </summary>
     public static GameManager Instance { get; private set; }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // State
+    // State  (private backing fields + public read-only properties)
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// True once GameOver() has been called.
-    /// Other scripts (Enemy, EnemySpawner, PlayerCombat) check this each frame.
-    /// </summary>
+    /// <summary>True once GameOver() has been called.</summary>
     public bool IsGameOver { get; private set; } = false;
+
+    /// <summary>Current accumulated score.</summary>
+    public int Score { get; private set; } = 0;
+
+    /// <summary>Current consecutive-hit streak.</summary>
+    public int Combo { get; private set; } = 0;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle
@@ -41,7 +48,7 @@ public class GameManager : MonoBehaviour
 
     private void Awake()
     {
-        // Set up singleton. If a duplicate exists, destroy it.
+        // Singleton setup: destroy duplicates.
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -55,15 +62,56 @@ public class GameManager : MonoBehaviour
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Call this from any script that detects a game-over condition.
-    /// Safe to call multiple times – only the first call does anything.
+    /// Called by PlayerCombat when the player destroys an enemy.
+    /// Increases combo, calculates score gain with combo multiplier, logs result.
+    /// Formula: scoreGain = baseScore + (combo * 10)
+    /// </summary>
+    public void RegisterHit(int baseScore)
+    {
+        if (IsGameOver) return;
+
+        // Increase combo first so the first hit already gives Combo: 1.
+        Combo++;
+
+        int scoreGain = baseScore + (Combo * 10);
+        Score += scoreGain;
+
+        Debug.Log($"Hit! Score: {Score}, Combo: {Combo}, Gain: {scoreGain}");
+    }
+
+    /// <summary>
+    /// Called by PlayerCombat when the player attacks but hits nothing.
+    /// Resets combo and logs the miss.
+    /// </summary>
+    public void RegisterMiss()
+    {
+        if (IsGameOver) return;
+
+        Combo = 0;
+        Debug.Log("Miss! Combo reset.");
+    }
+
+    /// <summary>
+    /// Utility to zero out the combo without logging.
+    /// Can be called externally if other systems need to reset the streak.
+    /// </summary>
+    public void ResetCombo()
+    {
+        Combo = 0;
+    }
+
+    /// <summary>
+    /// Triggers game over. Safe to call multiple times – only the first call runs.
+    /// Logs "Game Over", "Final Score", and "Final Combo".
     /// </summary>
     public void GameOver()
     {
-        // Guard: run only once.
         if (IsGameOver) return;
 
         IsGameOver = true;
+
         Debug.Log("Game Over");
+        Debug.Log($"Final Score: {Score}");
+        Debug.Log($"Final Combo: {Combo}");
     }
 }

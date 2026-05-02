@@ -3,23 +3,20 @@ using UnityEngine;
 /// <summary>
 /// Enemy – Controls a single enemy instance.
 ///
-/// Responsibilities:
-///   - Moves toward the player every frame at a fixed speed.
+/// Phase 1 responsibilities (preserved):
+///   - Moves toward the player every frame.
 ///   - Knows which side it spawned from (Left or Right).
-///   - Stops moving when the game is over.
-///   - Triggers game over when it makes contact with the player.
+///   - Stops moving when game is over.
+///   - Triggers GameOver when it touches the player via OnTriggerEnter2D.
 ///
-/// Collider setup (important for OnTriggerEnter2D to fire):
+/// Phase 2 additions:
+///   - scoreValue field: how many base points this enemy is worth when killed.
+///   - ScoreValue property: lets PlayerCombat read the value before destroying the enemy.
+///
+/// Collider setup (required for OnTriggerEnter2D to fire):
 ///   - Player Box Collider 2D → Is Trigger = TRUE
 ///   - Enemy Box Collider 2D  → Is Trigger = FALSE  (solid collider)
 ///   - Enemy Rigidbody 2D     → Body Type  = Kinematic
-///
-///   In Unity's trigger rules, a trigger event fires when at least one of
-///   the two colliders is a trigger AND at least one has a Rigidbody.
-///   The kinematic Rigidbody on the enemy satisfies that requirement,
-///   so OnTriggerEnter2D is called on the PLAYER's collider.
-///   We detect the collision here on the enemy by tagging the player "Player"
-///   and checking the tag inside OnTriggerEnter2D.
 ///
 /// Scene / Inspector setup:
 ///   - Attach this script to the Enemy prefab in Assets/Prefabs.
@@ -42,6 +39,10 @@ public class Enemy : MonoBehaviour
     [Tooltip("Units per second the enemy moves toward the player. Recommended: 2–3.")]
     private float moveSpeed = 2.5f;
 
+    [SerializeField]
+    [Tooltip("Base score awarded when this enemy is destroyed. Recommended: 100.")]
+    private int scoreValue = 100;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Runtime data  (set by EnemySpawner via Initialize)
     // ──────────────────────────────────────────────────────────────────────────
@@ -49,8 +50,14 @@ public class Enemy : MonoBehaviour
     /// <summary>The player Transform this enemy chases.</summary>
     private Transform playerTransform;
 
-    /// <summary>Which side this enemy came from (used by PlayerCombat).</summary>
+    /// <summary>Which side this enemy came from (used by PlayerCombat for attack filtering).</summary>
     public SpawnSide Side { get; private set; }
+
+    /// <summary>
+    /// Base score this enemy is worth. PlayerCombat reads this before calling
+    /// GameManager.RegisterHit(enemy.ScoreValue).
+    /// </summary>
+    public int ScoreValue => scoreValue;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Public API
@@ -72,23 +79,22 @@ public class Enemy : MonoBehaviour
 
     private void Update()
     {
-        // Stop moving if game is over or player reference is missing.
+        // Stop moving if game is over or if the player reference is missing.
         if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
         if (playerTransform == null) return;
 
-        // Move straight toward the player along the X axis (2D side-scroller style).
-        // To move freely in both X and Y, replace with MoveTowards on both axes.
+        // Move straight toward the player.
         Vector3 direction = (playerTransform.position - transform.position).normalized;
         transform.position += direction * moveSpeed * Time.deltaTime;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Only care about the player.
-        // Make sure your Player GameObject has the tag "Player".
+        // Only react to the Player.
+        // Requires the Player GameObject to have the "Player" tag.
         if (!other.CompareTag("Player")) return;
 
-        // Tell the GameManager the player was hit.
+        // Tell the GameManager the player was reached — triggers game over.
         if (GameManager.Instance != null)
         {
             GameManager.Instance.GameOver();
