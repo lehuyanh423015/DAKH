@@ -9,9 +9,12 @@ using UnityEngine;
 ///   - Stops moving when game is over.
 ///   - Triggers GameOver when it touches the player via OnTriggerEnter2D.
 ///
-/// Phase 2 additions:
-///   - scoreValue field: how many base points this enemy is worth when killed.
-///   - ScoreValue property: lets PlayerCombat read the value before destroying the enemy.
+/// Phase 2 additions (preserved):
+///   - scoreValue field and ScoreValue property for scoring.
+///
+/// Phase 5 additions:
+///   - SetMoveSpeed(float) : lets EnemySpawner override move speed at spawn time
+///     based on the current DifficultyManager value.
 ///
 /// Collider setup (required for OnTriggerEnter2D to fire):
 ///   - Player Box Collider 2D → Is Trigger = TRUE
@@ -20,7 +23,7 @@ using UnityEngine;
 ///
 /// Scene / Inspector setup:
 ///   - Attach this script to the Enemy prefab in Assets/Prefabs.
-///   - The spawner calls Initialize() after instantiating; no manual wiring needed.
+///   - The spawner calls Initialize() and SetMoveSpeed() after instantiating.
 /// </summary>
 public class Enemy : MonoBehaviour
 {
@@ -36,7 +39,9 @@ public class Enemy : MonoBehaviour
     // ──────────────────────────────────────────────────────────────────────────
 
     [SerializeField]
-    [Tooltip("Units per second the enemy moves toward the player. Recommended: 2–3.")]
+    [Tooltip("Units per second the enemy moves toward the player. " +
+             "This is the DEFAULT value used when DifficultyManager is not assigned. " +
+             "Recommended: 2.5. At runtime, EnemySpawner can override this via SetMoveSpeed().")]
     private float moveSpeed = 2.5f;
 
     [SerializeField]
@@ -44,7 +49,7 @@ public class Enemy : MonoBehaviour
     private int scoreValue = 100;
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Runtime data  (set by EnemySpawner via Initialize)
+    // Runtime data  (set by EnemySpawner via Initialize / SetMoveSpeed)
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>The player Transform this enemy chases.</summary>
@@ -54,8 +59,8 @@ public class Enemy : MonoBehaviour
     public SpawnSide Side { get; private set; }
 
     /// <summary>
-    /// Base score this enemy is worth. PlayerCombat reads this before calling
-    /// GameManager.RegisterHit(enemy.ScoreValue).
+    /// Base score this enemy is worth.
+    /// PlayerCombat reads this before calling GameManager.RegisterHit(enemy.ScoreValue).
     /// </summary>
     public int ScoreValue => scoreValue;
 
@@ -71,6 +76,16 @@ public class Enemy : MonoBehaviour
     {
         playerTransform = player;
         Side = side;
+    }
+
+    /// <summary>
+    /// Overrides the enemy's move speed at spawn time.
+    /// Called by EnemySpawner when DifficultyManager is assigned,
+    /// so each new enemy moves at the current difficulty-scaled speed.
+    /// </summary>
+    public void SetMoveSpeed(float speed)
+    {
+        moveSpeed = speed;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
