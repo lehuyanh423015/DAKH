@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 3692540505267754163}
   - component: {fileID: -6959966607210376878}
   m_Layer: 0
-  m_Name: HeavyEnemy
+  m_Name: SwitchEnemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -85,7 +85,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0, g: 1, b: 0.07230115, a: 1}
+  m_Color: {r: 0.20833817, g: 0.28930807, b: 0.2140537, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -186,10 +186,13 @@ MonoBehaviour:
   knockbackDuration: 0.08
   enableLaneBlocking: 1
   minSpacingFromFrontEnemy: 0.8
-  behaviorType: 0
-  sideSwitchGap: 1.2
+  behaviorType: 1
+  sideSwitchGap: 0.2
+  rehitMargin: 0.15
+  postSwitchNoGameOverDuration: 0.06
+  minSpacingOnTargetSide: 0.7
+  targetFollowupMaxDistance: 2
   sideSwitchDuration: 0.08
-  sideSwitchDistance: 1.2
   logEnemyHits: 0
   logLaneBlocking: 0
   logPatternActions: 0
