@@ -26,11 +26,16 @@ using UnityEngine;
 ///   - RegisterSuccessfulHit() increases combo on every valid hit.
 ///   - RegisterEnemyDefeated() awards score only when the enemy dies.
 ///
-/// Phase 7 update:
+/// Phase 7 update (preserved):
 ///   - Hit branch calls enemy.TakeHit() to apply damage.
 ///   - If TakeHit() returns true  (defeated): award score, spawn effect, destroy.
 ///   - If TakeHit() returns false (alive):    combo still counts, no score, no destroy.
 ///     Enemy handles its own knockback internally.
+///
+/// Phase 10 update:
+///   - Calls PlayerMovement.ShiftLeft() / ShiftRight() on every accepted attack input.
+///   - Shift happens regardless of hit or miss (as long as not stunned / game over).
+///   - PlayerMovement is auto-detected via GetComponent if not assigned in Inspector.
 ///
 /// Inspector recommended values:
 ///   attackRange            : 1.5 – 2.0
@@ -55,6 +60,11 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField]
     [Tooltip("Seconds the player cannot attack after a miss. Recommended: 0.4.")]
     private float stunDuration = 0.4f;
+
+    [Header("Player Movement (Phase 10)")]
+    [Tooltip("PlayerMovement component for attack-momentum shifts. " +
+             "Auto-detected from this GameObject if left empty.")]
+    [SerializeField] private PlayerMovement playerMovement;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Inspector fields – Attack indicator (Phase 4)
@@ -136,6 +146,12 @@ public class PlayerCombat : MonoBehaviour
             playerSpriteRenderer = GetComponent<SpriteRenderer>();
         }
 
+        // Auto-detect PlayerMovement if not assigned in Inspector.
+        if (playerMovement == null)
+        {
+            playerMovement = GetComponent<PlayerMovement>();
+        }
+
         // Make sure indicators start hidden.
         if (leftAttackIndicator  != null) leftAttackIndicator.SetActive(false);
         if (rightAttackIndicator != null) rightAttackIndicator.SetActive(false);
@@ -170,6 +186,8 @@ public class PlayerCombat : MonoBehaviour
         // ── Attack LEFT ──────────────────────────────────────────────────────
         if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
         {
+            // Phase 10: shift before indicator + attack so position is updated.
+            playerMovement?.ShiftLeft();
             ShowAttackIndicator(Enemy.SpawnSide.Left);
             TryAttack(Enemy.SpawnSide.Left);
         }
@@ -177,6 +195,8 @@ public class PlayerCombat : MonoBehaviour
         // ── Attack RIGHT ─────────────────────────────────────────────────────
         if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow))
         {
+            // Phase 10: shift before indicator + attack so position is updated.
+            playerMovement?.ShiftRight();
             ShowAttackIndicator(Enemy.SpawnSide.Right);
             TryAttack(Enemy.SpawnSide.Right);
         }
