@@ -22,11 +22,15 @@ using UnityEngine;
 ///   - Stun color: player sprite tints to stunColor while stunned, restores normalColor after.
 ///   - Camera shake: light shake on miss, stronger shake on game over.
 ///
-/// Phase 6 update:
-///   - On a valid hit, calls GameManager.RegisterSuccessfulHit() to increase combo,
-///     then GameManager.RegisterEnemyDefeated(scoreValue) to award score.
-///   - Separating these two calls prepares for future multi-hit enemies where
-///     combo can grow across several hits before the enemy is actually destroyed.
+/// Phase 6 update (preserved):
+///   - RegisterSuccessfulHit() increases combo on every valid hit.
+///   - RegisterEnemyDefeated() awards score only when the enemy dies.
+///
+/// Phase 7 update:
+///   - Hit branch calls enemy.TakeHit() to apply damage.
+///   - If TakeHit() returns true  (defeated): award score, spawn effect, destroy.
+///   - If TakeHit() returns false (alive):    combo still counts, no score, no destroy.
+///     Enemy handles its own knockback internally.
 ///
 /// Inspector recommended values:
 ///   attackRange            : 1.5 – 2.0
@@ -183,8 +187,14 @@ public class PlayerCombat : MonoBehaviour
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Tries to destroy the closest valid enemy on the given side.
-    /// On hit  → registers hit, spawns hit effect, destroys enemy.
+    /// Tries to hit the closest valid enemy on the given side.
+    ///
+    /// On valid hit:
+    ///   1. RegisterSuccessfulHit()         – always increments combo.
+    ///   2. enemy.TakeHit()                 – reduces enemy health by 1.
+    ///   3a. If defeated: RegisterEnemyDefeated(), spawn effect, Destroy.
+    ///   3b. If alive:    no score, no destroy; enemy handles its own knockback.
+    ///
     /// On miss → registers miss, starts stun, shakes camera.
     /// </summary>
     private void TryAttack(Enemy.SpawnSide targetSide)
@@ -219,20 +229,34 @@ public class PlayerCombat : MonoBehaviour
         // ── Hit ──────────────────────────────────────────────────────────────
         if (closestEnemy != null)
         {
+            // Step 1 – Combo always increases on every accurate hit.
             if (GameManager.Instance != null)
             {
-                // Phase 6: register the accurate hit first (increases combo),
-                // then register the kill (awards score using current combo).
-                // Keeping these as separate calls means future multi-hit enemies
-                // can call RegisterSuccessfulHit() multiple times before the enemy dies.
                 GameManager.Instance.RegisterSuccessfulHit();
-                GameManager.Instance.RegisterEnemyDefeated(closestEnemy.ScoreValue);
             }
 
-            // Spawn hit effect at the enemy's position (optional).
-            SpawnHitEffect(closestEnemy.transform.position);
+            // Step 2 – Deal damage and find out whether the enemy is now dead.
+            bool defeated = closestEnemy.TakeHit();
 
-            Destroy(closestEnemy.gameObject);
+            if (defeated)
+            {
+                // Step 3a – Enemy defeated: award score, spawn effect, destroy.
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.RegisterEnemyDefeated(closestEnemy.ScoreValue);
+                }
+
+                SpawnHitEffect(closestEnemy.transform.position);
+                Destroy(closestEnemy.gameObject);
+            }
+            else
+            {
+                // Step 3b – Enemy still alive: show a hit effect but keep the enemy.
+                // Combo has already been registered above.
+                // The enemy handles its own knockback inside TakeHit().
+                SpawnHitEffect(closestEnemy.transform.position);
+                // Do NOT award score. Do NOT destroy.
+            }
         }
         // ── Miss ─────────────────────────────────────────────────────────────
         else

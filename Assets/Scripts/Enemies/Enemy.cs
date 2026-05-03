@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -12,9 +13,20 @@ using UnityEngine;
 /// Phase 2 additions (preserved):
 ///   - scoreValue field and ScoreValue property for scoring.
 ///
-/// Phase 5 additions:
-///   - SetMoveSpeed(float) : lets EnemySpawner override move speed at spawn time
-///     based on the current DifficultyManager value.
+/// Phase 5 additions (preserved):
+///   - SetMoveSpeed(float) : EnemySpawner overrides speed at spawn time from DifficultyManager.
+///
+/// Phase 7 additions:
+///   - maxHealth / currentHealth : enemies can now survive more than one hit.
+///   - TakeHit() : called by PlayerCombat; reduces health by 1, returns true if defeated.
+///   - TriggerKnockback() : pushes a living enemy backward for knockbackDuration seconds.
+///   - Movement pauses while isKnockedBack is true.
+///   - logEnemyHits : optional per-prefab hit logging for debugging.
+///
+/// Design note (Phase 7):
+///   Enemy types should NOT differ by movement speed.
+///   Speed is controlled globally by DifficultyManager.
+///   Enemies differ by maxHealth, scoreValue, visual appearance, and future patterns.
 ///
 /// Collider setup (required for OnTriggerEnter2D to fire):
 ///   - Player Box Collider 2D → Is Trigger = TRUE
@@ -35,68 +47,80 @@ public class Enemy : MonoBehaviour
     public enum SpawnSide { Left, Right }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Inspector-tunable fields
+    // Inspector fields – Movement & score  (Phase 1/2/5, preserved)
     // ──────────────────────────────────────────────────────────────────────────
 
+    [Header("Movement & Score")]
     [SerializeField]
     [Tooltip("Units per second the enemy moves toward the player. " +
-             "This is the DEFAULT value used when DifficultyManager is not assigned. " +
-             "Recommended: 2.5. At runtime, EnemySpawner can override this via SetMoveSpeed().")]
+             "Overridden at spawn time by EnemySpawner when DifficultyManager is assigned. " +
+             "Keep equal across all enemy types — use maxHealth, not speed, to add difficulty. " +
+             "Recommended: 2.5.")]
     private float moveSpeed = 2.5f;
 
     [SerializeField]
-    [Tooltip("Base score awarded when this enemy is destroyed. Recommended: 100.")]
+    [Tooltip("Base score awarded when this enemy is defeated. " +
+             "NormalEnemy = 100. HeavyEnemy = 200.")]
     private int scoreValue = 100;
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Runtime data  (set by EnemySpawner via Initialize / SetMoveSpeed)
+    // Inspector fields – Health & knockback  (Phase 7)
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// <summary>The player Transform this enemy chases.</summary>
+    [Header("Health (Phase 7)")]
+    [SerializeField]
+    [Tooltip("Total hits required to defeat this enemy. NormalEnemy = 1. HeavyEnemy = 2.")]
+    private int maxHealth = 1;
+
+    [Header("Knockback (Phase 7)")]
+    [SerializeField]
+    [Tooltip("World-space units the enemy is knocked back on a non-lethal hit. Recommended: 1.0.")]
+    private float knockbackDistance = 1.0f;
+
+    [SerializeField]
+    [Tooltip("Seconds the knockback movement takes. Recommended: 0.12.")]
+    private float knockbackDuration = 0.12f;
+
+    [Header("Debug")]
+    [SerializeField]
+    [Tooltip("Log hit info to the Console for this enemy type.")]
+    private bool logEnemyHits = false;
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Runtime data
+    // ──────────────────────────────────────────────────────────────────────────
+
     private Transform playerTransform;
-
-    /// <summary>Which side this enemy came from (used by PlayerCombat for attack filtering).</summary>
-    public SpawnSide Side { get; private set; }
-
-    /// <summary>
-    /// Base score this enemy is worth.
-    /// PlayerCombat reads this before calling GameManager.RegisterHit(enemy.ScoreValue).
-    /// </summary>
-    public int ScoreValue => scoreValue;
+    private int       currentHealth;
+    private bool      isKnockedBack = false;
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Public API
+    // Public properties
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Called by EnemySpawner immediately after Instantiate.
-    /// Wires up the player reference and records which side we spawned from.
-    /// </summary>
-    public void Initialize(Transform player, SpawnSide side)
-    {
-        playerTransform = player;
-        Side = side;
-    }
-
-    /// <summary>
-    /// Overrides the enemy's move speed at spawn time.
-    /// Called by EnemySpawner when DifficultyManager is assigned,
-    /// so each new enemy moves at the current difficulty-scaled speed.
-    /// </summary>
-    public void SetMoveSpeed(float speed)
-    {
-        moveSpeed = speed;
-    }
+    public SpawnSide Side          { get; private set; }
+    public int       ScoreValue    => scoreValue;
+    public int       CurrentHealth => currentHealth;
+    public int       MaxHealth     => maxHealth;
+    public bool      IsDefeated    => currentHealth <= 0;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle
     // ──────────────────────────────────────────────────────────────────────────
 
+    private void Awake()
+    {
+        currentHealth = maxHealth;
+    }
+
     private void Update()
     {
-        // Stop moving if game is over or if the player reference is missing.
+        // Stop moving when game is over.
         if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
         if (playerTransform == null) return;
+
+        // Pause normal movement while knocked back.
+        if (isKnockedBack) return;
 
         // Move straight toward the player.
         Vector3 direction = (playerTransform.position - transform.position).normalized;
@@ -105,14 +129,132 @@ public class Enemy : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Only react to the Player.
-        // Requires the Player GameObject to have the "Player" tag.
         if (!other.CompareTag("Player")) return;
 
-        // Tell the GameManager the player was reached — triggers game over.
         if (GameManager.Instance != null)
         {
             GameManager.Instance.GameOver();
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Public API – Phase 5 (preserved)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by EnemySpawner immediately after Instantiate.
+    /// Wires up the player reference and records which side this enemy spawned from.
+    /// </summary>
+    public void Initialize(Transform player, SpawnSide side)
+    {
+        playerTransform = player;
+        Side            = side;
+    }
+
+    /// <summary>
+    /// Overrides the enemy's move speed at spawn time.
+    /// Called by EnemySpawner when DifficultyManager is assigned.
+    /// All enemy types should receive the SAME global speed — do not use this
+    /// to give HeavyEnemy a different (slower/faster) speed.
+    /// </summary>
+    public void SetMoveSpeed(float speed)
+    {
+        moveSpeed = speed;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Public API – Phase 7 (new)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by PlayerCombat when the player lands a valid hit on this enemy.
+    /// Reduces currentHealth by 1.
+    ///
+    /// Returns true  → enemy is defeated (currentHealth reached 0).
+    /// Returns false → enemy is still alive; knockback is triggered.
+    ///
+    /// Does nothing if the game is already over or the enemy is already defeated.
+    /// </summary>
+    public bool TakeHit()
+    {
+        // Guard: ignore hits after game over or after the enemy is already dead.
+        if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return false;
+        if (IsDefeated) return false;
+
+        currentHealth--;
+
+        if (logEnemyHits)
+        {
+            Debug.Log($"[{gameObject.name}] Hit! HP: {currentHealth}/{maxHealth}");
+        }
+
+        if (currentHealth <= 0)
+        {
+            // Defeated — caller handles effect + destroy.
+            return true;
+        }
+        else
+        {
+            // Still alive — push backward.
+            TriggerKnockback();
+            return false;
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Knockback  (Phase 7)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Starts the knockback coroutine.
+    /// Direction is determined by spawn side:
+    ///   Left-side enemy → knocked further left  (negative X).
+    ///   Right-side enemy → knocked further right (positive X).
+    /// </summary>
+    private void TriggerKnockback()
+    {
+        StartCoroutine(KnockbackRoutine());
+    }
+
+    private IEnumerator KnockbackRoutine()
+    {
+        isKnockedBack = true;
+
+        // Determine knockback direction: away from player (same as spawn side).
+        float directionX = (Side == SpawnSide.Left) ? -1f : 1f;
+        Vector3 knockbackOffset = new Vector3(directionX * knockbackDistance, 0f, 0f);
+
+        if (knockbackDuration <= 0f)
+        {
+            // Instant position offset.
+            transform.position += knockbackOffset;
+        }
+        else
+        {
+            // Smooth movement over knockbackDuration seconds.
+            Vector3 startPos  = transform.position;
+            Vector3 targetPos = transform.position + knockbackOffset;
+            float   elapsed   = 0f;
+
+            while (elapsed < knockbackDuration)
+            {
+                // Stop mid-knockback if game ends.
+                if (GameManager.Instance != null && GameManager.Instance.IsGameOver)
+                {
+                    isKnockedBack = false;
+                    yield break;
+                }
+
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / knockbackDuration);
+                transform.position = Vector3.Lerp(startPos, targetPos, t);
+                yield return null;
+            }
+
+            transform.position = targetPos;
+        }
+
+        isKnockedBack = false;
+        // Normal movement toward player resumes automatically in Update().
     }
 }

@@ -1115,7 +1115,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 103625236cc17794a9e0a551081780b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
-  enemyPrefab: {fileID: 687482400589257335, guid: f2af1177a9580a44a9147b094e1eb181, type: 3}
+  enemyPrefab: {fileID: 687482400589257335, guid: ebd402fc17e3bb44594ea246e596a3a2, type: 3}
   playerTransform: {fileID: 1292949171}
   difficultyManager: {fileID: 2094825226}
   spawnInterval: 1.5
@@ -1423,6 +1423,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd96b201e2cc46f4d91957d6de5f6f9e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  comboWindowDuration: 1
 --- !u!1 &1606802176
 GameObject:
   m_ObjectHideFlags: 0
