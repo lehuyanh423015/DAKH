@@ -9,15 +9,21 @@ using UnityEngine;
 ///
 /// Phase 2 responsibilities (preserved):
 ///   - Tracks score and combo.
-///   - RegisterHit(baseScore) : increases combo, calculates score gain, logs result.
-///   - RegisterMiss()         : resets combo, logs miss.
-///   - ResetCombo()           : utility to zero out combo externally if needed.
-///   - GameOver() logs Final Score and Final Combo.
+///   - RegisterMiss()   : resets combo immediately, logs miss.
+///   - ResetCombo()     : utility zero-out without logging.
+///   - GameOver()       : logs Final Score / Combo, fires OnGameOverEvent.
 ///
-/// Phase 3 additions:
-///   - OnScoreComboChanged event: fired whenever score or combo updates.
-///   - OnGameOverEvent event: fired when the game ends (carries final score/combo).
-///   - UI scripts subscribe to these events to refresh the display.
+/// Phase 3 additions (preserved):
+///   - OnScoreComboChanged event – fired whenever score or combo changes.
+///   - OnGameOverEvent event     – fired once when the game ends.
+///
+/// Phase 6 refactor – Combo-by-hit with timeout:
+///   OLD: combo increased only when an enemy was defeated (RegisterHit).
+///   NEW: combo increases on every accurate hit (RegisterSuccessfulHit),
+///        score is awarded separately when an enemy is defeated (RegisterEnemyDefeated).
+///        Combo expires automatically after comboWindowDuration without a new hit.
+///   BACKWARD COMPAT: RegisterHit(baseScore) wrapper calls both methods so
+///        existing single-hit enemies continue working without code changes.
 ///
 /// Scene setup:
 ///   Attach this script to the "GameManager" empty GameObject in MainScene.
@@ -28,30 +34,27 @@ public class GameManager : MonoBehaviour
     // Singleton
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Static reference so any script can reach GameManager without
-    /// a serialized field in the Inspector.
-    /// </summary>
     public static GameManager Instance { get; private set; }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Events  (Phase 3)
+    // Events  (Phase 3, preserved)
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Fired after every hit or miss so UI can refresh score/combo display.
-    /// Parameters: (currentScore, currentCombo)
-    /// </summary>
+    /// <summary>Fired after every combo/score change. Parameters: (score, combo).</summary>
     public event System.Action<int, int> OnScoreComboChanged;
 
-    /// <summary>
-    /// Fired once when the game ends.
-    /// Parameters: (finalScore, finalCombo)
-    /// </summary>
+    /// <summary>Fired once when the game ends. Parameters: (finalScore, finalCombo).</summary>
     public event System.Action<int, int> OnGameOverEvent;
 
     // ──────────────────────────────────────────────────────────────────────────
-    // State  (private backing fields + public read-only properties)
+    // Inspector fields  (Phase 6)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Tooltip("Seconds after the last successful hit before the combo expires. Recommended: 1.0.")]
+    [SerializeField] private float comboWindowDuration = 1.0f;
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // State
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>True once GameOver() has been called.</summary>
@@ -63,13 +66,19 @@ public class GameManager : MonoBehaviour
     /// <summary>Current consecutive-hit streak.</summary>
     public int Combo { get; private set; } = 0;
 
+    /// <summary>Exposes the combo window so UI or other systems can read it.</summary>
+    public float ComboWindowDuration => comboWindowDuration;
+
+    // ── Phase 6 combo-timeout tracking ──
+    private float lastSuccessfulHitTime = float.NegativeInfinity;
+    private bool  hasActiveCombo        = false;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle
     // ──────────────────────────────────────────────────────────────────────────
 
     private void Awake()
     {
-        // Singleton setup: destroy duplicates.
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -78,60 +87,117 @@ public class GameManager : MonoBehaviour
         Instance = this;
     }
 
+    private void Update()
+    {
+        // Only check timeout while a combo is active and game is still running.
+        if (IsGameOver)          return;
+        if (!hasActiveCombo)     return;
+
+        if (Time.time - lastSuccessfulHitTime > comboWindowDuration)
+        {
+            // Combo window elapsed – reset silently and notify UI once.
+            Combo         = 0;
+            hasActiveCombo = false;
+            Debug.Log("Combo expired.");
+            OnScoreComboChanged?.Invoke(Score, Combo);
+        }
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Public API
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Called by PlayerCombat when the player destroys an enemy.
-    /// Increases combo, calculates score gain with combo multiplier, logs result,
-    /// then fires OnScoreComboChanged so the UI refreshes.
-    /// Formula: scoreGain = baseScore + (combo * 10)
+    /// Call when the player lands an accurate hit on any enemy (even a multi-hit one).
+    /// Increases combo and starts / refreshes the combo window timer.
+    /// Does NOT add score – call RegisterEnemyDefeated() separately when the enemy dies.
     /// </summary>
-    public void RegisterHit(int baseScore)
+    public void RegisterSuccessfulHit()
     {
         if (IsGameOver) return;
 
-        // Increase combo first so the first hit already gives Combo: 1.
-        Combo++;
+        if (!hasActiveCombo)
+        {
+            // First hit of a new streak.
+            Combo = 1;
+        }
+        else if (Time.time - lastSuccessfulHitTime <= comboWindowDuration)
+        {
+            // Still inside the window – extend the streak.
+            Combo++;
+        }
+        else
+        {
+            // Window already expired between the Update() check and this call
+            // (edge case on the same frame). Treat as a fresh streak.
+            Combo = 1;
+        }
 
-        int scoreGain = baseScore + (Combo * 10);
-        Score += scoreGain;
+        hasActiveCombo        = true;
+        lastSuccessfulHitTime = Time.time;
 
-        Debug.Log($"Hit! Score: {Score}, Combo: {Combo}, Gain: {scoreGain}");
+        Debug.Log($"Hit registered! Combo: {Combo}");
 
-        // Notify UI.
         OnScoreComboChanged?.Invoke(Score, Combo);
     }
 
     /// <summary>
-    /// Called by PlayerCombat when the player attacks but hits nothing.
-    /// Resets combo, logs the miss, then fires OnScoreComboChanged so the UI refreshes.
+    /// Call when an enemy is actually destroyed.
+    /// Awards score using the current combo but does NOT change the combo itself.
+    /// Formula: scoreGain = baseScore + combo * 10
+    /// </summary>
+    public void RegisterEnemyDefeated(int baseScore)
+    {
+        if (IsGameOver) return;
+
+        int scoreGain = baseScore + (Combo * 10);
+        Score += scoreGain;
+
+        Debug.Log($"Enemy defeated! Score: {Score}, Combo: {Combo}, Gain: {scoreGain}");
+
+        OnScoreComboChanged?.Invoke(Score, Combo);
+    }
+
+    /// <summary>
+    /// Backward-compatible wrapper used by single-hit enemies.
+    /// Calls RegisterSuccessfulHit() then RegisterEnemyDefeated(baseScore)
+    /// so Phase 1–5 behaviour is fully preserved without changing PlayerCombat.
+    /// </summary>
+    public void RegisterHit(int baseScore)
+    {
+        RegisterSuccessfulHit();
+        RegisterEnemyDefeated(baseScore);
+    }
+
+    /// <summary>
+    /// Called when the player attacks and finds no valid enemy on that side.
+    /// Resets combo immediately and notifies the UI.
     /// </summary>
     public void RegisterMiss()
     {
         if (IsGameOver) return;
 
-        Combo = 0;
+        Combo          = 0;
+        hasActiveCombo = false;
+
         Debug.Log("Miss! Combo reset.");
 
-        // Notify UI (combo is now 0, score unchanged).
         OnScoreComboChanged?.Invoke(Score, Combo);
     }
 
     /// <summary>
-    /// Utility to zero out the combo without logging.
-    /// Can be called externally if other systems need to reset the streak.
+    /// Utility – zero out combo without logging.
+    /// Can be called externally if other systems need to break the streak.
     /// </summary>
     public void ResetCombo()
     {
-        Combo = 0;
+        Combo          = 0;
+        hasActiveCombo = false;
     }
 
     /// <summary>
     /// Triggers game over. Safe to call multiple times – only the first call runs.
-    /// Logs "Game Over", "Final Score", and "Final Combo",
-    /// then fires OnGameOverEvent so the UI shows the Game Over panel.
+    /// Logs final score/combo and fires OnGameOverEvent for the UI.
     /// </summary>
     public void GameOver()
     {
@@ -143,7 +209,6 @@ public class GameManager : MonoBehaviour
         Debug.Log($"Final Score: {Score}");
         Debug.Log($"Final Combo: {Combo}");
 
-        // Notify UI.
         OnGameOverEvent?.Invoke(Score, Combo);
     }
 }

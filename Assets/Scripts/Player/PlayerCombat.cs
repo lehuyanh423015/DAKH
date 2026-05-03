@@ -12,16 +12,21 @@ using UnityEngine;
 ///   - Finds the closest in-range enemy on the correct side and destroys it.
 ///
 /// Phase 2 responsibilities (preserved):
-///   - On HIT  : calls GameManager.RegisterHit(enemy.ScoreValue) before destroying.
 ///   - On MISS : calls GameManager.RegisterMiss() then stuns the player briefly.
 ///   - While stunned, all input is ignored.
 ///   - Logs "Player stunned." and "Player recovered."
 ///
-/// Phase 4 additions:
+/// Phase 4 additions (preserved):
 ///   - Attack direction indicator: briefly shows a sprite left or right of the player.
 ///   - Hit effect: optionally instantiates a prefab (with TemporaryEffect.cs) at enemy pos.
 ///   - Stun color: player sprite tints to stunColor while stunned, restores normalColor after.
 ///   - Camera shake: light shake on miss, stronger shake on game over.
+///
+/// Phase 6 update:
+///   - On a valid hit, calls GameManager.RegisterSuccessfulHit() to increase combo,
+///     then GameManager.RegisterEnemyDefeated(scoreValue) to award score.
+///   - Separating these two calls prepares for future multi-hit enemies where
+///     combo can grow across several hits before the enemy is actually destroyed.
 ///
 /// Inspector recommended values:
 ///   attackRange            : 1.5 – 2.0
@@ -214,10 +219,14 @@ public class PlayerCombat : MonoBehaviour
         // ── Hit ──────────────────────────────────────────────────────────────
         if (closestEnemy != null)
         {
-            // Register score BEFORE destroying so ScoreValue is still accessible.
             if (GameManager.Instance != null)
             {
-                GameManager.Instance.RegisterHit(closestEnemy.ScoreValue);
+                // Phase 6: register the accurate hit first (increases combo),
+                // then register the kill (awards score using current combo).
+                // Keeping these as separate calls means future multi-hit enemies
+                // can call RegisterSuccessfulHit() multiple times before the enemy dies.
+                GameManager.Instance.RegisterSuccessfulHit();
+                GameManager.Instance.RegisterEnemyDefeated(closestEnemy.ScoreValue);
             }
 
             // Spawn hit effect at the enemy's position (optional).
