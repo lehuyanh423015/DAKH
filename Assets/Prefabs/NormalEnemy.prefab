@@ -181,3 +181,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   moveSpeed: 2.5
   scoreValue: 100
+  maxHealth: 1
+  knockbackDistance: 0.45
+  knockbackDuration: 0.08
+  logEnemyHits: 0

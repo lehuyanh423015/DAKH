@@ -16,12 +16,18 @@ using UnityEngine;
 /// Phase 5 additions (preserved):
 ///   - SetMoveSpeed(float) : EnemySpawner overrides speed at spawn time from DifficultyManager.
 ///
-/// Phase 7 additions:
+/// Phase 7 additions (preserved):
 ///   - maxHealth / currentHealth : enemies can now survive more than one hit.
 ///   - TakeHit() : called by PlayerCombat; reduces health by 1, returns true if defeated.
 ///   - TriggerKnockback() : pushes a living enemy backward for knockbackDuration seconds.
 ///   - Movement pauses while isKnockedBack is true.
 ///   - logEnemyHits : optional per-prefab hit logging for debugging.
+///
+/// Phase 8 tuning:
+///   - knockbackDistance default reduced: 1.0 → 0.45
+///     (shorter push so HeavyEnemy stays reachable after the first hit)
+///   - knockbackDuration default reduced: 0.12 → 0.08
+///     (faster recovery maintains second-hit rhythm)
 ///
 /// Design note (Phase 7):
 ///   Enemy types should NOT differ by movement speed.
@@ -72,14 +78,18 @@ public class Enemy : MonoBehaviour
     [Tooltip("Total hits required to defeat this enemy. NormalEnemy = 1. HeavyEnemy = 2.")]
     private int maxHealth = 1;
 
-    [Header("Knockback (Phase 7)")]
+    [Header("Knockback (Phase 7/8)")]
     [SerializeField]
-    [Tooltip("World-space units the enemy is knocked back on a non-lethal hit. Recommended: 1.0.")]
-    private float knockbackDistance = 1.0f;
+    [Tooltip("World-space units the enemy is pushed back on a non-lethal hit. " +
+             "Shorter values keep the enemy within comfortable second-hit range. " +
+             "Recommended default: 0.45. Tune between 0.35–0.65 for feel.")]
+    private float knockbackDistance = 0.45f;
 
     [SerializeField]
-    [Tooltip("Seconds the knockback movement takes. Recommended: 0.12.")]
-    private float knockbackDuration = 0.12f;
+    [Tooltip("Seconds the knockback movement takes. " +
+             "Shorter values let the enemy resume approach quickly so second hits feel natural. " +
+             "Recommended default: 0.08. Tune between 0.06–0.12.")]
+    private float knockbackDuration = 0.08f;
 
     [Header("Debug")]
     [SerializeField]

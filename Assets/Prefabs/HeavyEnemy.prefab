@@ -182,6 +182,6 @@ MonoBehaviour:
   moveSpeed: 2.5
   scoreValue: 200
   maxHealth: 2
-  knockbackDistance: 1
-  knockbackDuration: 0.12
+  knockbackDistance: 0.45
+  knockbackDuration: 0.08
   logEnemyHits: 0
