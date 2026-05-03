@@ -65,8 +65,9 @@ public class Enemy : MonoBehaviour
     /// Controls the non-lethal-hit reaction.
     ///   Normal          → standard knockback.
     ///   SwitchSideOnHit → enemy crosses to the opposite side (SwitchEnemy).
+    ///   AlternatingThreeHit → crosses to opposite side repeatedly (PatternEnemy3Hit).
     /// </summary>
-    public enum EnemyBehaviorType { Normal, SwitchSideOnHit }
+    public enum EnemyBehaviorType { Normal, SwitchSideOnHit, AlternatingThreeHit }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Inspector fields – Movement & score  (Phase 1 / 2 / 5)
@@ -79,7 +80,7 @@ public class Enemy : MonoBehaviour
     private float moveSpeed = 2.5f;
 
     [SerializeField]
-    [Tooltip("Base score when defeated. NormalEnemy=100, HeavyEnemy=200, SwitchEnemy=250.")]
+    [Tooltip("Base score when defeated. NormalEnemy=100, HeavyEnemy=200, SwitchEnemy=250, PatternEnemy3Hit=350.")]
     private int scoreValue = 100;
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ public class Enemy : MonoBehaviour
 
     [Header("Health (Phase 7)")]
     [SerializeField]
-    [Tooltip("Total hits to defeat. NormalEnemy=1. HeavyEnemy/SwitchEnemy=2.")]
+    [Tooltip("Total hits to defeat. NormalEnemy=1. HeavyEnemy/SwitchEnemy=2. PatternEnemy3Hit=3.")]
     private int maxHealth = 1;
 
     [Header("Knockback (Phase 7/8 – Normal behavior only)")]
@@ -117,11 +118,12 @@ public class Enemy : MonoBehaviour
     // Inspector fields – Pattern behavior  (Phase 12)
     // ──────────────────────────────────────────────────────────────────────────
 
-    [Header("Pattern Behavior (Phase 12)")]
+    [Header("Pattern Behavior (Phase 12 / 13)")]
     [SerializeField]
     [Tooltip("Non-lethal-hit reaction.\n" +
              "Normal          → knockback (NormalEnemy, HeavyEnemy).\n" +
-             "SwitchSideOnHit → crosses to opposite side (SwitchEnemy).")]
+             "SwitchSideOnHit → crosses to opposite side (SwitchEnemy).\n" +
+             "AlternatingThreeHit → alternating sides (PatternEnemy3Hit).")]
     private EnemyBehaviorType behaviorType = EnemyBehaviorType.Normal;
 
     [SerializeField]
@@ -351,13 +353,24 @@ public class Enemy : MonoBehaviour
             Debug.Log($"[{gameObject.name}] Hit! HP: {currentHealth}/{maxHealth}");
         }
 
+        // Optional visual feedback for pattern enemies
+        if ((behaviorType == EnemyBehaviorType.AlternatingThreeHit || behaviorType == EnemyBehaviorType.SwitchSideOnHit) && currentHealth > 0)
+        {
+            SpriteRenderer sr = GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                // Darken slightly on each hit to show progression
+                sr.color = new Color(sr.color.r * 0.75f, sr.color.g * 0.75f, sr.color.b * 0.75f, sr.color.a);
+            }
+        }
+
         if (currentHealth <= 0)
         {
             return true; // Defeated — caller handles effect + destroy.
         }
 
         // Still alive — choose reaction.
-        if (behaviorType == EnemyBehaviorType.SwitchSideOnHit)
+        if (behaviorType == EnemyBehaviorType.SwitchSideOnHit || behaviorType == EnemyBehaviorType.AlternatingThreeHit)
         {
             TriggerSideSwitch();
         }
