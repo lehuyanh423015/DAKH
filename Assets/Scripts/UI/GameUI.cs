@@ -61,6 +61,18 @@ public class GameUI : MonoBehaviour
     [Tooltip("The Restart button inside the Game Over panel.")]
     [SerializeField] private Button restartButton;
 
+    [Header("UI Effects (Phase 18, optional)")]
+    [SerializeField] private UIPopEffect scorePopEffect;
+    [SerializeField] private UIPopEffect comboPopEffect;
+    [SerializeField] private UIFlashEffect shieldFlashEffect;
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Private state
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private int lastScore = 0;
+    private int lastCombo = 0;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle
     // ──────────────────────────────────────────────────────────────────────────
@@ -185,6 +197,18 @@ public class GameUI : MonoBehaviour
         {
             comboText.text = "Combo: " + combo;
         }
+
+        if (score != lastScore)
+        {
+            if (scorePopEffect != null) scorePopEffect.PlayPop();
+            lastScore = score;
+        }
+
+        if (combo != lastCombo)
+        {
+            if (comboPopEffect != null) comboPopEffect.PlayPop();
+            lastCombo = combo;
+        }
     }
 
     /// <summary>
@@ -203,6 +227,11 @@ public class GameUI : MonoBehaviour
             {
                 shieldText.text = "Shield: -";
             }
+        }
+
+        if (shieldFlashEffect != null)
+        {
+            shieldFlashEffect.PlayFlash();
         }
     }
 
