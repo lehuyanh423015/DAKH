@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -15,25 +16,23 @@ using UnityEngine;
 ///   - Each spawned enemy's move speed set to DifficultyManager.CurrentEnemySpeed.
 ///   - Falls back to fixed spawnInterval / prefab default speed if not assigned.
 ///
-/// Phase 8 additions:
+/// Phase 8 additions (preserved):
 ///   - enemyPrefabs[] array supports multiple enemy types (NormalEnemy, HeavyEnemy).
-///   - If enemyPrefabs has at least one valid entry, one is chosen randomly each spawn.
 ///   - enemyPrefab (single) is kept as a fallback when enemyPrefabs is empty/unset.
 ///   - ALL spawned enemies receive the SAME global speed from DifficultyManager.
-///     HeavyEnemy should not move slower or faster — it is harder because it needs 2 hits.
-///   - Optional logSpawnedEnemyType for debugging without log spam.
+///
+/// Phase 14 additions:
+///   - enemySpawnWeights[] array supports weighted random selection.
+///   - Falls back to equal random selection if weights are missing, wrong length, or zero.
+///   - Replaces logSpawnedEnemyType with logSpawnWeights.
 ///
 /// Scene setup:
 ///   - Attach to the "EnemySpawner" empty GameObject.
-///   - Assign Player Transform.
-///   - Assign DifficultyManager (recommended).
-///   - Drag NormalEnemy + HeavyEnemy prefabs into the enemyPrefabs array.
-///   - Leave the single enemyPrefab slot as optional fallback.
-///
-/// Inspector recommended values (fallback):
-///   spawnInterval      : 1.5  (seconds between spawns)
-///   leftSpawnPosition  : (-7, 0, 0)
-///   rightSpawnPosition : ( 7, 0, 0)
+///   - Assign Player Transform and DifficultyManager.
+///   - enemyPrefabs[0] = NormalEnemy, enemySpawnWeights[0] = 60
+///   - enemyPrefabs[1] = HeavyEnemy,  enemySpawnWeights[1] = 25
+///   - enemyPrefabs[2] = SwitchEnemy, enemySpawnWeights[2] = 10
+///   - enemyPrefabs[3] = PatternEnemy3Hit, enemySpawnWeights[3] = 5
 /// </summary>
 public class EnemySpawner : MonoBehaviour
 {
@@ -46,17 +45,18 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] private GameObject enemyPrefab;
 
     [Tooltip("Pool of enemy prefabs to spawn randomly. " +
-             "Add NormalEnemy at index 0 and HeavyEnemy at index 1. " +
-             "Simple equal-chance random selection is used. " +
-             "If this array is empty, the single enemyPrefab fallback is used instead.")]
+             "Example: [NormalEnemy, HeavyEnemy, SwitchEnemy, PatternEnemy3Hit]")]
     [SerializeField] private GameObject[] enemyPrefabs;
+
+    [Tooltip("Weights for each prefab in enemyPrefabs. Must match the length of enemyPrefabs. " +
+             "Example: [60, 25, 10, 5]")]
+    [SerializeField] private float[] enemySpawnWeights;
 
     [Tooltip("The Player GameObject. Drag from the Hierarchy.")]
     [SerializeField] private Transform playerTransform;
 
     [Tooltip("Optional: drag DifficultyManager here to enable dynamic spawn interval and enemy speed. " +
-             "All enemy types will receive the SAME global speed. " +
-             "If left empty, fixed spawnInterval and prefab default speed are used.")]
+             "All enemy types will receive the SAME global speed.")]
     [SerializeField] private DifficultyManager difficultyManager;
 
     [Header("Spawn Settings (fallback when DifficultyManager is not assigned)")]
@@ -70,14 +70,15 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] private Vector3 rightSpawnPosition = new Vector3( 7f, 0f, 0f);
 
     [Header("Debug")]
-    [Tooltip("Log which prefab was selected each spawn. Keep false in production.")]
-    [SerializeField] private bool logSpawnedEnemyType = false;
+    [Tooltip("Log which prefab was selected and its spawn weight mode. Keep false in production.")]
+    [SerializeField] private bool logSpawnWeights = false;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Private state
     // ──────────────────────────────────────────────────────────────────────────
 
     private float spawnTimer = 0f;
+    private bool hasLoggedWeightWarning = false;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle
@@ -110,7 +111,7 @@ public class EnemySpawner : MonoBehaviour
     {
         // ── Resolve which prefab to use ──────────────────────────────────────
         GameObject prefabToSpawn = PickPrefab();
-        if (prefabToSpawn == null) return;  // warning already logged inside PickPrefab
+        if (prefabToSpawn == null) return;
 
         if (playerTransform == null)
         {
@@ -127,11 +128,6 @@ public class EnemySpawner : MonoBehaviour
         // ── Instantiate ──────────────────────────────────────────────────────
         GameObject newEnemyObj = Instantiate(prefabToSpawn, spawnPos, Quaternion.identity);
 
-        if (logSpawnedEnemyType)
-        {
-            Debug.Log($"EnemySpawner: Spawned enemy prefab: {prefabToSpawn.name} on the {side} side.");
-        }
-
         // ── Wire up the enemy component ──────────────────────────────────────
         Enemy enemyScript = newEnemyObj.GetComponent<Enemy>();
         if (enemyScript != null)
@@ -139,13 +135,10 @@ public class EnemySpawner : MonoBehaviour
             enemyScript.Initialize(playerTransform, side);
 
             // Apply the SAME global speed to every enemy type.
-            // HeavyEnemy is harder because it needs 2 hits, not because it moves differently.
             if (difficultyManager != null)
             {
                 enemyScript.SetMoveSpeed(difficultyManager.CurrentEnemySpeed);
             }
-            // If no DifficultyManager, the enemy uses the default moveSpeed from its prefab.
-            // Ensure all prefabs have the same default moveSpeed (recommended: 2.5).
         }
         else
         {
@@ -153,45 +146,118 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Picks a prefab to spawn.
-    /// Priority:
-    ///   1. enemyPrefabs[] array (if it has at least one valid non-null entry).
-    ///   2. Single enemyPrefab fallback.
-    ///   3. Null + warning if neither is assigned.
-    /// Selection from enemyPrefabs is simple equal-chance random.
-    /// </summary>
+    // ──────────────────────────────────────────────────────────────────────────
+    // Selection logic
+    // ──────────────────────────────────────────────────────────────────────────
+
     private GameObject PickPrefab()
     {
-        // Build a list of valid (non-null) entries from the array.
-        if (enemyPrefabs != null && enemyPrefabs.Length > 0)
+        if (enemyPrefabs == null || enemyPrefabs.Length == 0)
         {
-            // Collect valid non-null prefabs.
-            int validCount = 0;
-            for (int i = 0; i < enemyPrefabs.Length; i++)
+            if (enemyPrefab != null) return enemyPrefab;
+            Debug.LogWarning("EnemySpawner: No enemy prefab is assigned. " +
+                             "Assign prefabs to enemyPrefabs[] or the single enemyPrefab slot.");
+            return null;
+        }
+
+        bool useWeights = true;
+
+        if (enemySpawnWeights == null || enemySpawnWeights.Length == 0)
+        {
+            useWeights = false;
+        }
+        else if (enemySpawnWeights.Length != enemyPrefabs.Length)
+        {
+            useWeights = false;
+            if (!hasLoggedWeightWarning)
             {
-                if (enemyPrefabs[i] != null) validCount++;
+                Debug.LogWarning("EnemySpawner: Spawn weights invalid (length mismatch). Falling back to equal random selection.");
+                hasLoggedWeightWarning = true;
+            }
+        }
+        else
+        {
+            float total = 0f;
+            for (int i = 0; i < enemySpawnWeights.Length; i++)
+            {
+                if (enemyPrefabs[i] != null && enemySpawnWeights[i] > 0f)
+                {
+                    total += enemySpawnWeights[i];
+                }
             }
 
-            if (validCount > 0)
+            if (total <= 0f)
             {
-                // Pick a random index, skip nulls.
-                int pick = Random.Range(0, validCount);
-                int seen = 0;
-                for (int i = 0; i < enemyPrefabs.Length; i++)
+                useWeights = false;
+                if (!hasLoggedWeightWarning)
                 {
-                    if (enemyPrefabs[i] == null) continue;
-                    if (seen == pick) return enemyPrefabs[i];
-                    seen++;
+                    Debug.LogWarning("EnemySpawner: Spawn weights invalid (total <= 0). Falling back to equal random selection.");
+                    hasLoggedWeightWarning = true;
                 }
             }
         }
 
-        // Fallback: single prefab.
-        if (enemyPrefab != null) return enemyPrefab;
+        return useWeights ? PickWeightedPrefab() : PickEqualRandomPrefab();
+    }
 
-        Debug.LogWarning("EnemySpawner: No enemy prefab is assigned. " +
-                         "Assign prefabs to enemyPrefabs[] or the single enemyPrefab slot.");
+    private GameObject PickWeightedPrefab()
+    {
+        float totalWeight = 0f;
+        for (int i = 0; i < enemyPrefabs.Length; i++)
+        {
+            if (enemyPrefabs[i] != null && enemySpawnWeights[i] > 0f)
+            {
+                totalWeight += enemySpawnWeights[i];
+            }
+        }
+
+        float roll = Random.Range(0f, totalWeight);
+        float cumulative = 0f;
+        GameObject lastValid = null;
+
+        for (int i = 0; i < enemyPrefabs.Length; i++)
+        {
+            if (enemyPrefabs[i] != null && enemySpawnWeights[i] > 0f)
+            {
+                cumulative += enemySpawnWeights[i];
+                lastValid = enemyPrefabs[i];
+                if (roll <= cumulative)
+                {
+                    if (logSpawnWeights) Debug.Log($"EnemySpawner: Selected {enemyPrefabs[i].name} using weighted spawn.");
+                    return enemyPrefabs[i];
+                }
+            }
+        }
+
+        if (logSpawnWeights && lastValid != null) Debug.Log($"EnemySpawner: Selected {lastValid.name} using weighted spawn (fallback).");
+        return lastValid;
+    }
+
+    private GameObject PickEqualRandomPrefab()
+    {
+        int validCount = 0;
+        for (int i = 0; i < enemyPrefabs.Length; i++)
+        {
+            if (enemyPrefabs[i] != null) validCount++;
+        }
+
+        if (validCount > 0)
+        {
+            int pick = Random.Range(0, validCount);
+            int seen = 0;
+            for (int i = 0; i < enemyPrefabs.Length; i++)
+            {
+                if (enemyPrefabs[i] == null) continue;
+                if (seen == pick)
+                {
+                    if (logSpawnWeights) Debug.Log($"EnemySpawner: Selected {enemyPrefabs[i].name} using equal random fallback.");
+                    return enemyPrefabs[i];
+                }
+                seen++;
+            }
+        }
+
+        if (enemyPrefab != null) return enemyPrefab;
         return null;
     }
 }

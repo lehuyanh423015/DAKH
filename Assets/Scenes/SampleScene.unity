@@ -543,6 +543,7 @@ GameObject:
   - component: {fileID: 519420029}
   - component: {fileID: 519420030}
   - component: {fileID: 519420033}
+  - component: {fileID: 519420034}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -612,7 +613,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_BackGroundColor: {r: 0.23410857, g: 0.80455446, b: 0.836478, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -680,6 +681,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c885cdf6eaf2e854288e3e5ce34ef9ce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraShake
+--- !u!114 &519420034
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519420028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4bd8daa020ec28c49aface9315433b97, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraFollow
+  target: {fileID: 1292949171}
+  followStrength: 3
+  followFactor: 0.6
+  deadZone: 0.4
+  useBounds: 1
+  minX: -1.5
+  maxX: 1.5
+  logCameraFollow: 0
 --- !u!1 &608970663
 GameObject:
   m_ObjectHideFlags: 0
@@ -1115,12 +1136,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 103625236cc17794a9e0a551081780b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
-  enemyPrefab: {fileID: 687482400589257335, guid: ebd402fc17e3bb44594ea246e596a3a2, type: 3}
+  enemyPrefab: {fileID: 687482400589257335, guid: f2af1177a9580a44a9147b094e1eb181, type: 3}
+  enemyPrefabs:
+  - {fileID: 687482400589257335, guid: f2af1177a9580a44a9147b094e1eb181, type: 3}
+  - {fileID: 687482400589257335, guid: ebd402fc17e3bb44594ea246e596a3a2, type: 3}
+  - {fileID: 687482400589257335, guid: 00e368131465b2942b3df9a1fd79247a, type: 3}
+  - {fileID: 687482400589257335, guid: e1d231e36a55e2648ada8a00c5f678d0, type: 3}
+  enemySpawnWeights: []
   playerTransform: {fileID: 1292949171}
   difficultyManager: {fileID: 2094825226}
   spawnInterval: 1.5
   leftSpawnPosition: {x: -7, y: 0, z: 0}
   rightSpawnPosition: {x: 7, y: 0, z: 0}
+  logSpawnWeights: 0
 --- !u!1 &769392085
 GameObject:
   m_ObjectHideFlags: 0
@@ -1224,6 +1252,7 @@ GameObject:
   - component: {fileID: 1292949170}
   - component: {fileID: 1292949169}
   - component: {fileID: 1292949172}
+  - component: {fileID: 1292949173}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1367,6 +1396,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat
   attackRange: 2
   stunDuration: 0.4
+  playerMovement: {fileID: 1292949173}
   leftAttackIndicator: {fileID: 1707311261}
   rightAttackIndicator: {fileID: 769392085}
   attackIndicatorDuration: 0.15
@@ -1379,6 +1409,23 @@ MonoBehaviour:
   missShakeStrength: 0.08
   gameOverShakeDuration: 0.25
   gameOverShakeStrength: 0.15
+--- !u!114 &1292949173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1292949168}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06c2861457847074492a211e4c1ce973, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
+  shiftDistance: 0.25
+  shiftDuration: 0.08
+  minX: -2.5
+  maxX: 2.5
+  logMovement: 0
 --- !u!1 &1396267874
 GameObject:
   m_ObjectHideFlags: 0
