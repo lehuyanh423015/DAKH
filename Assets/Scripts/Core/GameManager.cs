@@ -43,6 +43,9 @@ public class GameManager : MonoBehaviour
     /// <summary>Fired after every combo/score change. Parameters: (score, combo).</summary>
     public event System.Action<int, int> OnScoreComboChanged;
 
+    /// <summary>Fired when a combo shield is gained or consumed. Parameter: (comboShields).</summary>
+    public event System.Action<int> OnComboShieldChanged;
+
     /// <summary>Fired once when the game ends. Parameters: (finalScore, finalCombo).</summary>
     public event System.Action<int, int> OnGameOverEvent;
 
@@ -52,6 +55,16 @@ public class GameManager : MonoBehaviour
 
     [Tooltip("Seconds after the last successful hit before the combo expires. Recommended: 1.0.")]
     [SerializeField] private float comboWindowDuration = 1.0f;
+
+    [Header("Combo Shield (Phase 15)")]
+    [Tooltip("Number of consecutive hits required to earn a combo shield.")]
+    [SerializeField] private int comboShieldThreshold = 10;
+
+    [Tooltip("Maximum number of shields the player can hold at once.")]
+    [SerializeField] private int maxComboShields = 1;
+
+    [Tooltip("If true, a shielded miss resets combo to 0. If false, combo is maintained.")]
+    [SerializeField] private bool resetComboOnShieldedMiss = true;
 
     // ──────────────────────────────────────────────────────────────────────────
     // State
@@ -68,6 +81,11 @@ public class GameManager : MonoBehaviour
 
     /// <summary>Exposes the combo window so UI or other systems can read it.</summary>
     public float ComboWindowDuration => comboWindowDuration;
+
+    private int comboShields = 0;
+    public int ComboShields => comboShields;
+    public int ComboShieldThreshold => comboShieldThreshold;
+    public bool HasComboShield => comboShields > 0;
 
     // ── Phase 6 combo-timeout tracking ──
     private float lastSuccessfulHitTime = float.NegativeInfinity;
@@ -137,6 +155,14 @@ public class GameManager : MonoBehaviour
         lastSuccessfulHitTime = Time.time;
 
         Debug.Log($"Hit registered! Combo: {Combo}");
+
+        // Check for shield gain (Phase 15)
+        if (Combo >= comboShieldThreshold && comboShields < maxComboShields)
+        {
+            comboShields++;
+            Debug.Log("Combo Shield gained!");
+            OnComboShieldChanged?.Invoke(comboShields);
+        }
 
         OnScoreComboChanged?.Invoke(Score, Combo);
     }
@@ -209,6 +235,23 @@ public class GameManager : MonoBehaviour
         Debug.Log($"Final Score: {Score}");
         Debug.Log($"Final Combo: {Combo}");
 
+        comboShields = 0;
+        OnComboShieldChanged?.Invoke(comboShields);
+
         OnGameOverEvent?.Invoke(Score, Combo);
+    }
+
+    /// <summary>
+    /// Consumes a combo shield if one is available.
+    /// Returns true if a shield was consumed, false otherwise.
+    /// </summary>
+    public bool TryConsumeComboShield()
+    {
+        if (IsGameOver || comboShields <= 0) return false;
+
+        comboShields--;
+        Debug.Log("Combo Shield consumed!");
+        OnComboShieldChanged?.Invoke(comboShields);
+        return true;
     }
 }

@@ -89,6 +89,10 @@ public class PlayerCombat : MonoBehaviour
              "Must have TemporaryEffect.cs attached. Leave empty to skip.")]
     [SerializeField] private GameObject hitEffectPrefab;
 
+    [Header("Shield Break Effect (Phase 15, optional)")]
+    [Tooltip("Prefab instantiated at the player position when a combo shield is consumed on a miss.")]
+    [SerializeField] private GameObject shieldBreakEffectPrefab;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Inspector fields – Stun color (Phase 4)
     // ──────────────────────────────────────────────────────────────────────────
@@ -284,6 +288,17 @@ public class PlayerCombat : MonoBehaviour
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.RegisterMiss();
+
+                // Phase 15: Combo Shield check
+                if (GameManager.Instance.TryConsumeComboShield())
+                {
+                    Debug.Log("Miss forgiven by Combo Shield.");
+                    if (shieldBreakEffectPrefab != null)
+                    {
+                        Instantiate(shieldBreakEffectPrefab, transform.position, Quaternion.identity);
+                    }
+                    return; // Skip stun, camera shake, and color tint
+                }
             }
 
             // Camera shake on miss (optional).

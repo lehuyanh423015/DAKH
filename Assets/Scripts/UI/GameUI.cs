@@ -45,6 +45,9 @@ public class GameUI : MonoBehaviour
     [Tooltip("TextMeshPro text that shows the current combo. Example: 'Combo: 3'")]
     [SerializeField] private TextMeshProUGUI comboText;
 
+    [Tooltip("TextMeshPro text that shows the current shield status. Example: 'Shield: READY'")]
+    [SerializeField] private TextMeshProUGUI shieldText;
+
     [Header("Game Over Panel")]
     [Tooltip("The panel that is hidden during play and shown when the game ends.")]
     [SerializeField] private GameObject gameOverPanel;
@@ -65,6 +68,7 @@ public class GameUI : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.OnScoreComboChanged += HandleScoreComboChanged;
+            GameManager.Instance.OnComboShieldChanged += HandleComboShieldChanged;
             GameManager.Instance.OnGameOverEvent     += HandleGameOver;
         }
         else
@@ -86,6 +90,11 @@ public class GameUI : MonoBehaviour
         // Show 0 score and 0 combo at the start of the game.
         UpdateScoreComboText(0, 0);
 
+        if (GameManager.Instance != null)
+        {
+            UpdateComboShieldText(GameManager.Instance.ComboShields);
+        }
+
         // Hide the Game Over panel until the game actually ends.
         if (gameOverPanel != null)
         {
@@ -104,6 +113,7 @@ public class GameUI : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.OnScoreComboChanged -= HandleScoreComboChanged;
+            GameManager.Instance.OnComboShieldChanged -= HandleComboShieldChanged;
             GameManager.Instance.OnGameOverEvent     -= HandleGameOver;
         }
     }
@@ -118,6 +128,14 @@ public class GameUI : MonoBehaviour
     private void HandleScoreComboChanged(int score, int combo)
     {
         UpdateScoreComboText(score, combo);
+    }
+
+    /// <summary>
+    /// Called by GameManager whenever the combo shield count changes.
+    /// </summary>
+    private void HandleComboShieldChanged(int comboShields)
+    {
+        UpdateComboShieldText(comboShields);
     }
 
     /// <summary>
@@ -157,6 +175,25 @@ public class GameUI : MonoBehaviour
         if (comboText != null)
         {
             comboText.text = "Combo: " + combo;
+        }
+    }
+
+    /// <summary>
+    /// Updates shieldText based on whether a shield is available.
+    /// Safe to call even if the reference is not assigned yet.
+    /// </summary>
+    private void UpdateComboShieldText(int comboShields)
+    {
+        if (shieldText != null)
+        {
+            if (comboShields > 0)
+            {
+                shieldText.text = "Shield: READY";
+            }
+            else
+            {
+                shieldText.text = "Shield: -";
+            }
         }
     }
 
