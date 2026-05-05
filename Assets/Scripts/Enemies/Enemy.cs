@@ -176,6 +176,11 @@ public class Enemy : MonoBehaviour
     [Tooltip("Log side-switch events for SwitchEnemy debugging.")]
     private bool logPatternActions = false;
 
+    [Header("Visuals (Phase 19)")]
+    [SerializeField]
+    [Tooltip("Optional child object containing SpriteRenderer and Animator. Replaces root SpriteRenderer.")]
+    private VisualRoot visualRoot;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Runtime data
     // ──────────────────────────────────────────────────────────────────────────
@@ -220,6 +225,11 @@ public class Enemy : MonoBehaviour
     private void Awake()
     {
         currentHealth = maxHealth;
+
+        if (visualRoot == null)
+        {
+            visualRoot = GetComponentInChildren<VisualRoot>();
+        }
     }
 
     private void Update()
@@ -356,7 +366,16 @@ public class Enemy : MonoBehaviour
         // Optional visual feedback for pattern enemies
         if ((behaviorType == EnemyBehaviorType.AlternatingThreeHit || behaviorType == EnemyBehaviorType.SwitchSideOnHit) && currentHealth > 0)
         {
-            SpriteRenderer sr = GetComponent<SpriteRenderer>();
+            SpriteRenderer sr = null;
+            if (visualRoot != null && visualRoot.SpriteRenderer != null)
+            {
+                sr = visualRoot.SpriteRenderer;
+            }
+            else
+            {
+                sr = GetComponent<SpriteRenderer>();
+            }
+
             if (sr != null)
             {
                 // Darken slightly on each hit to show progression
@@ -439,6 +458,9 @@ public class Enemy : MonoBehaviour
     {
         Collider2D col = GetComponent<Collider2D>();
         if (col != null) return col.bounds.extents.x;
+
+        if (visualRoot != null && visualRoot.SpriteRenderer != null)
+            return visualRoot.SpriteRenderer.bounds.extents.x;
 
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr != null) return sr.bounds.extents.x;

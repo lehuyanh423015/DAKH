@@ -98,7 +98,10 @@ public class PlayerCombat : MonoBehaviour
     // ──────────────────────────────────────────────────────────────────────────
 
     [Header("Stun Visual (optional)")]
-    [Tooltip("Player SpriteRenderer for color tinting. Auto-detected if left empty.")]
+    [Tooltip("Optional child object containing SpriteRenderer and Animator. Replaces root SpriteRenderer.")]
+    [SerializeField] private VisualRoot playerVisualRoot;
+
+    [Tooltip("Player SpriteRenderer for color tinting. Auto-detected from VisualRoot or Root if left empty.")]
     [SerializeField] private SpriteRenderer playerSpriteRenderer;
 
     [Tooltip("Player sprite color while stunned. Recommended: red (255, 80, 80, 255).")]
@@ -148,7 +151,19 @@ public class PlayerCombat : MonoBehaviour
 
     private void Awake()
     {
-        // Auto-detect SpriteRenderer if not assigned in Inspector.
+        // Auto-detect VisualRoot if not assigned.
+        if (playerVisualRoot == null)
+        {
+            playerVisualRoot = GetComponentInChildren<VisualRoot>();
+        }
+
+        // Try to get SpriteRenderer from VisualRoot first.
+        if (playerSpriteRenderer == null && playerVisualRoot != null && playerVisualRoot.SpriteRenderer != null)
+        {
+            playerSpriteRenderer = playerVisualRoot.SpriteRenderer;
+        }
+
+        // Auto-detect SpriteRenderer on root if still not assigned.
         if (playerSpriteRenderer == null)
         {
             playerSpriteRenderer = GetComponent<SpriteRenderer>();
