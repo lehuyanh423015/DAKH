@@ -127,6 +127,10 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Shake strength on game over (units).")]
     [SerializeField] private float gameOverShakeStrength = 0.15f;
 
+    [Header("Debug")]
+    [Tooltip("If true, logs combat events like stun and shield forgiveness.")]
+    [SerializeField] private bool logCombat = false;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Private state
     // ──────────────────────────────────────────────────────────────────────────
@@ -295,7 +299,7 @@ public class PlayerCombat : MonoBehaviour
                 // Phase 15: Combo Shield check
                 if (GameManager.Instance.TryConsumeComboShield())
                 {
-                    Debug.Log("Miss forgiven by Combo Shield.");
+                    if (logCombat) Debug.Log("Miss forgiven by Combo Shield.");
                     AudioManager.Instance?.PlayShieldConsumed();
                     if (shieldBreakEffectPrefab != null)
                     {
@@ -372,7 +376,7 @@ public class PlayerCombat : MonoBehaviour
     private IEnumerator StunRoutine()
     {
         isStunned = true;
-        Debug.Log("Player stunned.");
+        if (logCombat) Debug.Log("Player stunned.");
 
         // Apply stun color tint.
         if (playerSpriteRenderer != null)
@@ -389,7 +393,7 @@ public class PlayerCombat : MonoBehaviour
         }
 
         isStunned = false;
-        Debug.Log("Player recovered.");
+        if (logCombat) Debug.Log("Player recovered.");
     }
 
     // ──────────────────────────────────────────────────────────────────────────

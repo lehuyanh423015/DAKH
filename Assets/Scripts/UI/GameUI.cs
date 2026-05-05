@@ -55,6 +55,9 @@ public class GameUI : MonoBehaviour
     [Tooltip("TextMeshPro text inside the Game Over panel. Shows 'Final Score: 350'.")]
     [SerializeField] private TextMeshProUGUI finalScoreText;
 
+    [Tooltip("Optional TextMeshPro text inside the Game Over panel to show survival time.")]
+    [SerializeField] private TextMeshProUGUI finalTimeText;
+
     [Tooltip("The Restart button inside the Game Over panel.")]
     [SerializeField] private Button restartButton;
 
@@ -154,6 +157,12 @@ public class GameUI : MonoBehaviour
         if (finalScoreText != null)
         {
             finalScoreText.text = "Final Score: " + finalScore;
+        }
+
+        // Phase 17: Display final survival time if available.
+        if (finalTimeText != null && GameManager.Instance != null)
+        {
+            finalTimeText.text = $"Time: {GameManager.Instance.SessionTime:0.00}s";
         }
     }
 

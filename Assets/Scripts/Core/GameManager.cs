@@ -66,6 +66,14 @@ public class GameManager : MonoBehaviour
     [Tooltip("If true, a shielded miss resets combo to 0. If false, combo is maintained.")]
     [SerializeField] private bool resetComboOnShieldedMiss = true;
 
+    [Header("Session Tracking (Phase 17)")]
+    [Tooltip("Track and log the total session time.")]
+    [SerializeField] private bool trackSessionTime = true;
+
+    [Header("Debug")]
+    [Tooltip("If true, logs hit, miss, and combo timeout events.")]
+    [SerializeField] private bool logCombat = false;
+
     // ──────────────────────────────────────────────────────────────────────────
     // State
     // ──────────────────────────────────────────────────────────────────────────
@@ -86,6 +94,9 @@ public class GameManager : MonoBehaviour
     public int ComboShields => comboShields;
     public int ComboShieldThreshold => comboShieldThreshold;
     public bool HasComboShield => comboShields > 0;
+
+    private float sessionTime = 0f;
+    public float SessionTime => sessionTime;
 
     // ── Phase 6 combo-timeout tracking ──
     private float lastSuccessfulHitTime = float.NegativeInfinity;
@@ -109,6 +120,12 @@ public class GameManager : MonoBehaviour
     {
         // Only check timeout while a combo is active and game is still running.
         if (IsGameOver)          return;
+
+        if (trackSessionTime)
+        {
+            sessionTime += Time.deltaTime;
+        }
+
         if (!hasActiveCombo)     return;
 
         if (Time.time - lastSuccessfulHitTime > comboWindowDuration)
@@ -116,7 +133,7 @@ public class GameManager : MonoBehaviour
             // Combo window elapsed – reset silently and notify UI once.
             Combo         = 0;
             hasActiveCombo = false;
-            Debug.Log("Combo expired.");
+            if (logCombat) Debug.Log("Combo expired.");
             OnScoreComboChanged?.Invoke(Score, Combo);
         }
     }
@@ -154,13 +171,13 @@ public class GameManager : MonoBehaviour
         hasActiveCombo        = true;
         lastSuccessfulHitTime = Time.time;
 
-        Debug.Log($"Hit registered! Combo: {Combo}");
+        if (logCombat) Debug.Log($"Hit registered! Combo: {Combo}");
 
         // Check for shield gain (Phase 15)
         if (Combo >= comboShieldThreshold && comboShields < maxComboShields)
         {
             comboShields++;
-            Debug.Log("Combo Shield gained!");
+            if (logCombat) Debug.Log("Combo Shield gained!");
             AudioManager.Instance?.PlayShieldGained();
             OnComboShieldChanged?.Invoke(comboShields);
         }
@@ -180,7 +197,7 @@ public class GameManager : MonoBehaviour
         int scoreGain = baseScore + (Combo * 10);
         Score += scoreGain;
 
-        Debug.Log($"Enemy defeated! Score: {Score}, Combo: {Combo}, Gain: {scoreGain}");
+        if (logCombat) Debug.Log($"Enemy defeated! Score: {Score}, Combo: {Combo}, Gain: {scoreGain}");
 
         OnScoreComboChanged?.Invoke(Score, Combo);
     }
@@ -207,7 +224,7 @@ public class GameManager : MonoBehaviour
         Combo          = 0;
         hasActiveCombo = false;
 
-        Debug.Log("Miss! Combo reset.");
+        if (logCombat) Debug.Log("Miss! Combo reset.");
 
         OnScoreComboChanged?.Invoke(Score, Combo);
     }
@@ -235,6 +252,10 @@ public class GameManager : MonoBehaviour
         Debug.Log("Game Over");
         Debug.Log($"Final Score: {Score}");
         Debug.Log($"Final Combo: {Combo}");
+        if (trackSessionTime)
+        {
+            Debug.Log($"Survival Time: {sessionTime:0.00}s");
+        }
 
         comboShields = 0;
         OnComboShieldChanged?.Invoke(comboShields);
@@ -252,7 +273,7 @@ public class GameManager : MonoBehaviour
         if (IsGameOver || comboShields <= 0) return false;
 
         comboShields--;
-        Debug.Log("Combo Shield consumed!");
+        if (logCombat) Debug.Log("Combo Shield consumed!");
         OnComboShieldChanged?.Invoke(comboShields);
         return true;
     }

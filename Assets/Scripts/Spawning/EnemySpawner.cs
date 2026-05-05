@@ -96,6 +96,9 @@ public class EnemySpawner : MonoBehaviour
             ? difficultyManager.CurrentSpawnInterval
             : spawnInterval;
 
+        // Phase 17: Clamp to a safe minimum to prevent infinite loops or impossible pacing.
+        currentInterval = Mathf.Max(0.1f, currentInterval);
+
         if (spawnTimer >= currentInterval)
         {
             spawnTimer = 0f;
