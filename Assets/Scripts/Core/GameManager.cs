@@ -161,6 +161,7 @@ public class GameManager : MonoBehaviour
         {
             comboShields++;
             Debug.Log("Combo Shield gained!");
+            AudioManager.Instance?.PlayShieldGained();
             OnComboShieldChanged?.Invoke(comboShields);
         }
 
@@ -238,6 +239,7 @@ public class GameManager : MonoBehaviour
         comboShields = 0;
         OnComboShieldChanged?.Invoke(comboShields);
 
+        AudioManager.Instance?.PlayGameOver();
         OnGameOverEvent?.Invoke(Score, Combo);
     }
 

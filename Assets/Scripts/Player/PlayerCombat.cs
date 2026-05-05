@@ -259,6 +259,8 @@ public class PlayerCombat : MonoBehaviour
                 GameManager.Instance.RegisterSuccessfulHit();
             }
 
+            AudioManager.Instance?.PlayHit();
+
             // Step 2 – Deal damage and find out whether the enemy is now dead.
             bool defeated = closestEnemy.TakeHit();
 
@@ -270,6 +272,7 @@ public class PlayerCombat : MonoBehaviour
                     GameManager.Instance.RegisterEnemyDefeated(closestEnemy.ScoreValue);
                 }
 
+                AudioManager.Instance?.PlayEnemyDefeated();
                 SpawnHitEffect(closestEnemy.transform.position);
                 Destroy(closestEnemy.gameObject);
             }
@@ -293,6 +296,7 @@ public class PlayerCombat : MonoBehaviour
                 if (GameManager.Instance.TryConsumeComboShield())
                 {
                     Debug.Log("Miss forgiven by Combo Shield.");
+                    AudioManager.Instance?.PlayShieldConsumed();
                     if (shieldBreakEffectPrefab != null)
                     {
                         Instantiate(shieldBreakEffectPrefab, transform.position, Quaternion.identity);
@@ -300,6 +304,9 @@ public class PlayerCombat : MonoBehaviour
                     return; // Skip stun, camera shake, and color tint
                 }
             }
+
+            AudioManager.Instance?.PlayMiss();
+            AudioManager.Instance?.PlayStun();
 
             // Camera shake on miss (optional).
             if (cameraShake != null)

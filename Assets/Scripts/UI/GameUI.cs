@@ -204,9 +204,11 @@ public class GameUI : MonoBehaviour
     /// <summary>
     /// Reloads the current scene, effectively resetting the whole game.
     /// Score, combo, and game over state all reset because the scene is fresh.
+    /// Note: The restart click sound may be cut off due to immediate reload.
     /// </summary>
     private void RestartGame()
     {
+        AudioManager.Instance?.PlayRestartClick();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }
