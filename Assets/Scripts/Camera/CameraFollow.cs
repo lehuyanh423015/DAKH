@@ -99,6 +99,10 @@ public class CameraFollow : MonoBehaviour
     {
         if (target == null) return;
 
+        // Phase 24: Stop camera follow on game over or when paused.
+        if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
+        if (Time.timeScale == 0f) return;
+
         Vector3 current = transform.position;
 
         // Desired X = camera's initial X + a fraction of the player's current X.

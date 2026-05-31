@@ -130,6 +130,10 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Shake strength on game over (units).")]
     [SerializeField] private float gameOverShakeStrength = 0.15f;
 
+    [Header("Animation (Phase 24)")]
+    [Tooltip("PlayerAnimationController on Player/Visual. Auto-detected if not assigned.")]
+    [SerializeField] private PlayerAnimationController playerAnimationController;
+
     [Header("Debug")]
     [Tooltip("If true, logs combat events like stun and shield forgiveness.")]
     [SerializeField] private bool logCombat = false;
@@ -175,6 +179,16 @@ public class PlayerCombat : MonoBehaviour
             playerMovement = GetComponent<PlayerMovement>();
         }
 
+        // Auto-detect PlayerAnimationController (Phase 24).
+        if (playerAnimationController == null)
+        {
+            playerAnimationController = GetComponentInChildren<PlayerAnimationController>();
+        }
+        if (playerAnimationController == null)
+        {
+            playerAnimationController = GetComponent<PlayerAnimationController>();
+        }
+
         // Make sure indicators start hidden.
         if (leftAttackIndicator  != null) leftAttackIndicator.SetActive(false);
         if (rightAttackIndicator != null) rightAttackIndicator.SetActive(false);
@@ -211,6 +225,8 @@ public class PlayerCombat : MonoBehaviour
         {
             // Phase 10: shift before indicator + attack so position is updated.
             playerMovement?.ShiftLeft();
+            // Phase 24: play attack animation facing left.
+            playerAnimationController?.PlayAttack(-1);
             ShowAttackIndicator(Enemy.SpawnSide.Left);
             TryAttack(Enemy.SpawnSide.Left);
         }
@@ -220,6 +236,8 @@ public class PlayerCombat : MonoBehaviour
         {
             // Phase 10: shift before indicator + attack so position is updated.
             playerMovement?.ShiftRight();
+            // Phase 24: play attack animation facing right.
+            playerAnimationController?.PlayAttack(1);
             ShowAttackIndicator(Enemy.SpawnSide.Right);
             TryAttack(Enemy.SpawnSide.Right);
         }
@@ -285,7 +303,7 @@ public class PlayerCombat : MonoBehaviour
 
             if (defeated)
             {
-                // Step 3a – Enemy defeated: award score, spawn effect, destroy.
+                // Step 3a – Enemy defeated: award score, spawn effect, then destroy.
                 if (GameManager.Instance != null)
                 {
                     GameManager.Instance.RegisterEnemyDefeated(closestEnemy.ScoreValue);
@@ -293,7 +311,18 @@ public class PlayerCombat : MonoBehaviour
 
                 AudioManager.Instance?.PlayEnemyDefeated();
                 SpawnHitEffect(closestEnemy.transform.position);
-                Destroy(closestEnemy.gameObject);
+
+                // Phase 24+: play death animation if available; enemy is already harmless
+                // (MakeHarmless was called inside TakeHit before returning true).
+                float deathDelay = closestEnemy.PlayDeathAnimationIfAvailable();
+                if (deathDelay > 0f)
+                {
+                    Destroy(closestEnemy.gameObject, deathDelay);
+                }
+                else
+                {
+                    Destroy(closestEnemy.gameObject);
+                }
             }
             else
             {
@@ -393,6 +422,9 @@ public class PlayerCombat : MonoBehaviour
         isStunned = true;
         if (logCombat) Debug.Log("Player stunned.");
 
+        // Phase 24: play stun animation.
+        playerAnimationController?.PlayStun();
+
         // Apply stun color tint.
         if (playerSpriteRenderer != null)
         {
@@ -409,6 +441,9 @@ public class PlayerCombat : MonoBehaviour
 
         isStunned = false;
         if (logCombat) Debug.Log("Player recovered.");
+
+        // Phase 24: return to idle after stun ends.
+        playerAnimationController?.PlayIdle();
     }
 
     // ──────────────────────────────────────────────────────────────────────────

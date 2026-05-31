@@ -64,10 +64,18 @@ public class CameraShake : MonoBehaviour
 
         while (elapsed < duration)
         {
-            float offsetX = Random.Range(-1f, 1f) * strength;
-            float offsetY = Random.Range(-1f, 1f) * strength;
+            if (GameManager.Instance != null && GameManager.Instance.IsGameOver)
+            {
+                break;
+            }
 
-            transform.position = basePosition + new Vector3(offsetX, offsetY, 0f);
+            if (Time.timeScale > 0f)
+            {
+                float offsetX = Random.Range(-1f, 1f) * strength;
+                float offsetY = Random.Range(-1f, 1f) * strength;
+
+                transform.position = basePosition + new Vector3(offsetX, offsetY, 0f);
+            }
 
             elapsed += Time.deltaTime;
             yield return null;

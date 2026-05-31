@@ -247,6 +247,10 @@ public class GameUI : MonoBehaviour
     private void RestartGame()
     {
         AudioManager.Instance?.PlayRestartClick();
+
+        // Phase 24: Ensure time scale is restored when restarting after game over.
+        Time.timeScale = 1f;
+
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

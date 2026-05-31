@@ -26,6 +26,10 @@ public class MainMenuManager : MonoBehaviour
         }
 
         if (logActions) Debug.Log($"MainMenuManager: Loading scene '{gameplaySceneName}'...");
+
+        // Phase 24: Ensure time scale is restored when starting a new game.
+        Time.timeScale = 1f;
+
         SceneManager.LoadScene(gameplaySceneName);
     }
 
@@ -34,6 +38,8 @@ public class MainMenuManager : MonoBehaviour
     /// </summary>
     public void QuitGame()
     {
+        Time.timeScale = 1f;
+
 #if UNITY_EDITOR
         if (logActions) Debug.Log("Quit requested. Application.Quit() does not close the Editor play mode.");
 #else

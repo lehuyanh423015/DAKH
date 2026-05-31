@@ -181,6 +181,11 @@ public class Enemy : MonoBehaviour
     [Tooltip("Optional child object containing SpriteRenderer and Animator. Replaces root SpriteRenderer.")]
     private VisualRoot visualRoot;
 
+    [Header("Animation (Phase 24+)")]
+    [SerializeField]
+    [Tooltip("Optional EnemyAnimationController on the Visual child. Auto-detected if empty.")]
+    private EnemyAnimationController enemyAnimationController;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Runtime data
     // ──────────────────────────────────────────────────────────────────────────
@@ -207,6 +212,9 @@ public class Enemy : MonoBehaviour
 
     private bool wasBlockedLastFrame = false;
 
+    /// <summary>Set to true the instant the enemy is defeated. Stops movement and collision threat.</summary>
+    private bool isDefeated = false;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Public properties
     // ──────────────────────────────────────────────────────────────────────────
@@ -216,7 +224,8 @@ public class Enemy : MonoBehaviour
     public int               ScoreValue    => scoreValue;
     public int               CurrentHealth => currentHealth;
     public int               MaxHealth     => maxHealth;
-    public bool              IsDefeated    => currentHealth <= 0;
+    /// <summary>True once MakeHarmless() has been called (health hit 0). Enemy cannot kill or block lanes.</summary>
+    public bool              IsDefeated    => isDefeated;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle
@@ -229,6 +238,11 @@ public class Enemy : MonoBehaviour
         if (visualRoot == null)
         {
             visualRoot = GetComponentInChildren<VisualRoot>();
+        }
+
+        if (enemyAnimationController == null)
+        {
+            enemyAnimationController = GetComponentInChildren<EnemyAnimationController>();
         }
     }
 
@@ -262,6 +276,8 @@ public class Enemy : MonoBehaviour
     {
         if (!other.CompareTag("Player")) return;
 
+        // Suppress Game Over when enemy is already defeated (death animation playing).
+        if (isDefeated) return;
         // Suppress Game Over during crossing and during the post-landing grace period.
         if (isSwitchingSide) return;
         if (Time.time < noGameOverUntil) return;
@@ -328,6 +344,7 @@ public class Enemy : MonoBehaviour
     {
         playerTransform = player;
         Side            = side;
+        UpdateVisualFacingTowardPlayer();
     }
 
     /// <summary>
@@ -385,10 +402,16 @@ public class Enemy : MonoBehaviour
 
         if (currentHealth <= 0)
         {
-            return true; // Defeated — caller handles effect + destroy.
+            // Stop movement and disable collision threat immediately.
+            MakeHarmless();
+            return true; // Defeated — caller handles effect, animation, and destroy.
         }
 
         // Still alive — choose reaction.
+        // Play non-lethal hit animation before handling knockback/switch.
+        UpdateVisualFacingTowardPlayer();
+        enemyAnimationController?.PlayBack();
+
         if (behaviorType == EnemyBehaviorType.SwitchSideOnHit || behaviorType == EnemyBehaviorType.AlternatingThreeHit)
         {
             TriggerSideSwitch();
@@ -398,6 +421,86 @@ public class Enemy : MonoBehaviour
             TriggerKnockback();
         }
         return false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Defeat helpers (Phase 24+)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called immediately when health reaches 0.
+    /// Stops movement, disables the collider, and marks this enemy as harmless
+    /// so it cannot trigger Game Over or block lanes while the death animation plays.
+    /// </summary>
+    private void MakeHarmless()
+    {
+        isDefeated = true;
+
+        // Disable collider so the enemy cannot trigger Game Over during death anim.
+        Collider2D col = GetComponent<Collider2D>();
+        if (col != null) col.enabled = false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Visual facing helpers (Phase 24+)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Gets the direction (1 for right, -1 for left) the enemy should face to look at the player.
+    /// </summary>
+    private int GetFacingDirectionTowardPlayer()
+    {
+        if (playerTransform != null)
+        {
+            if (playerTransform.position.x > transform.position.x) return 1;
+            if (playerTransform.position.x < transform.position.x) return -1;
+        }
+        
+        return Side == SpawnSide.Left ? 1 : -1; // Default: face center
+    }
+
+    /// <summary>
+    /// Updates the visual's facing direction to look at the player.
+    /// </summary>
+    private void UpdateVisualFacingTowardPlayer()
+    {
+        if (enemyAnimationController != null)
+        {
+            enemyAnimationController.SetFacingDirection(GetFacingDirectionTowardPlayer());
+        }
+    }
+
+    /// <summary>
+    /// Determines the visual death drift direction based on the player's position.
+    /// </summary>
+    private int GetDeathDriftDirection()
+    {
+        if (playerTransform != null)
+        {
+            if (transform.position.x < playerTransform.position.x)
+                return -1; // Left of player, drift further left
+            if (transform.position.x > playerTransform.position.x)
+                return 1;  // Right of player, drift further right
+        }
+        
+        // Fallback to spawn side
+        return Side == SpawnSide.Left ? -1 : 1;
+    }
+
+    /// <summary>
+    /// Triggers the death animation if an EnemyAnimationController is present.
+    /// Returns the time (in seconds) the caller should wait before destroying this object.
+    /// Returns 0 if no animation controller is available (destroy immediately).
+    /// </summary>
+    public float PlayDeathAnimationIfAvailable()
+    {
+        if (enemyAnimationController != null)
+        {
+            UpdateVisualFacingTowardPlayer();
+            int dir = GetDeathDriftDirection();
+            return enemyAnimationController.PlayDieAndGetDuration(dir);
+        }
+        return 0f;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -702,6 +805,10 @@ public class Enemy : MonoBehaviour
             Debug.Log($"[{gameObject.name}] Landed on {newSide} at X={transform.position.x:F2}. " +
                       $"Grace until {noGameOverUntil:F2}.");
         }
+
+        // Phase 24+: Ensure visual is facing the player and return to run animation.
+        UpdateVisualFacingTowardPlayer();
+        enemyAnimationController?.PlayRun();
 
         // Normal movement toward player resumes automatically in Update().
     }

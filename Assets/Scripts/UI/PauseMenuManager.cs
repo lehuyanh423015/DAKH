@@ -22,6 +22,33 @@ public class PauseMenuManager : MonoBehaviour
 
     public bool IsPaused => isPaused;
 
+    private void OnEnable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameOverEvent += HandleGameOver;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameOverEvent -= HandleGameOver;
+        }
+    }
+
+    private void HandleGameOver(int finalScore, int finalCombo)
+    {
+        // If game over happens while paused, ensure the pause panel is hidden
+        // so it doesn't block the Game Over panel. Time remains frozen by GameManager.
+        if (isPaused && pausePanel != null)
+        {
+            pausePanel.SetActive(false);
+            isPaused = false;
+        }
+    }
+
     private void Start()
     {
         // Ensure the game starts unpaused and the panel is hidden.

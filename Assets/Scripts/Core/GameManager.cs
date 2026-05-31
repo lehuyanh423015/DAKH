@@ -70,6 +70,10 @@ public class GameManager : MonoBehaviour
     [Tooltip("Track and log the total session time.")]
     [SerializeField] private bool trackSessionTime = true;
 
+    [Header("Phase 24 - Freeze Polish")]
+    [Tooltip("If true, freezes time (Time.timeScale = 0) upon Game Over.")]
+    [SerializeField] private bool freezeTimeOnGameOver = true;
+
     [Header("Debug")]
     [Tooltip("If true, logs hit, miss, and combo timeout events.")]
     [SerializeField] private bool logCombat = false;
@@ -262,6 +266,11 @@ public class GameManager : MonoBehaviour
 
         AudioManager.Instance?.PlayGameOver();
         OnGameOverEvent?.Invoke(Score, Combo);
+
+        if (freezeTimeOnGameOver)
+        {
+            Time.timeScale = 0f;
+        }
     }
 
     /// <summary>
