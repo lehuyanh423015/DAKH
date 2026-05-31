@@ -54,6 +54,10 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Combat")]
     [SerializeField]
+    [Tooltip("If true, the player can be controlled via keyboard. Set false for Demo AI.")]
+    private bool allowHumanInput = true;
+
+    [SerializeField]
     [Tooltip("Maximum distance (units) at which the player can destroy an enemy. Recommended: 1.5–2.0.")]
     private float attackRange = 2.0f;
 
@@ -220,27 +224,51 @@ public class PlayerCombat : MonoBehaviour
         // Ignore input while stunned.
         if (isStunned) return;
 
+        if (!allowHumanInput) return;
+
         // ── Attack LEFT ──────────────────────────────────────────────────────
         if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
         {
-            // Phase 10: shift before indicator + attack so position is updated.
-            playerMovement?.ShiftLeft();
-            // Phase 24: play attack animation facing left.
-            playerAnimationController?.PlayAttack(-1);
-            ShowAttackIndicator(Enemy.SpawnSide.Left);
-            TryAttack(Enemy.SpawnSide.Left);
+            RequestAttackLeft();
         }
 
         // ── Attack RIGHT ─────────────────────────────────────────────────────
         if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow))
         {
-            // Phase 10: shift before indicator + attack so position is updated.
-            playerMovement?.ShiftRight();
-            // Phase 24: play attack animation facing right.
-            playerAnimationController?.PlayAttack(1);
-            ShowAttackIndicator(Enemy.SpawnSide.Right);
-            TryAttack(Enemy.SpawnSide.Right);
+            RequestAttackRight();
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Public Input API (Phase 25 Demo AI support)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    public void RequestAttackLeft()
+    {
+        if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
+        if (isStunned) return;
+
+        playerMovement?.ShiftLeft();
+        playerAnimationController?.PlayAttack(-1);
+        ShowAttackIndicator(Enemy.SpawnSide.Left);
+        TryAttack(Enemy.SpawnSide.Left);
+    }
+
+    public void RequestAttackRight()
+    {
+        if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
+        if (isStunned) return;
+
+        playerMovement?.ShiftRight();
+        playerAnimationController?.PlayAttack(1);
+        ShowAttackIndicator(Enemy.SpawnSide.Right);
+        TryAttack(Enemy.SpawnSide.Right);
+    }
+
+    public void RequestAttack(int direction)
+    {
+        if (direction < 0) RequestAttackLeft();
+        else if (direction > 0) RequestAttackRight();
     }
 
     // ──────────────────────────────────────────────────────────────────────────

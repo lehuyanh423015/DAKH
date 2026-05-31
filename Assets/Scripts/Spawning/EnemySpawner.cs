@@ -69,6 +69,10 @@ public class EnemySpawner : MonoBehaviour
     [Tooltip("World position where right-side enemies appear.")]
     [SerializeField] private Vector3 rightSpawnPosition = new Vector3( 7f, 0f, 0f);
 
+    [Header("Demo Mode (Phase 25)")]
+    [Tooltip("If true and GameManager is in Demo Mode, spawn enemy prefabs in sequential order instead of randomly.")]
+    [SerializeField] private bool cycleEnemyTypesInDemo = true;
+
     [Header("Debug")]
     [Tooltip("Log which prefab was selected and its spawn weight mode. Keep false in production.")]
     [SerializeField] private bool logSpawnWeights = false;
@@ -79,6 +83,7 @@ public class EnemySpawner : MonoBehaviour
 
     private float spawnTimer = 0f;
     private bool hasLoggedWeightWarning = false;
+    private int demoCycleIndex = 0;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle
@@ -161,6 +166,24 @@ public class EnemySpawner : MonoBehaviour
             Debug.LogWarning("EnemySpawner: No enemy prefab is assigned. " +
                              "Assign prefabs to enemyPrefabs[] or the single enemyPrefab slot.");
             return null;
+        }
+
+        if (GameManager.Instance != null && GameManager.Instance.IsDemoMode && cycleEnemyTypesInDemo)
+        {
+            int validCount = 0;
+            foreach (var p in enemyPrefabs) if (p != null) validCount++;
+
+            if (validCount > 0)
+            {
+                while (enemyPrefabs[demoCycleIndex % enemyPrefabs.Length] == null)
+                {
+                    demoCycleIndex++;
+                }
+
+                GameObject picked = enemyPrefabs[demoCycleIndex % enemyPrefabs.Length];
+                demoCycleIndex++;
+                return picked;
+            }
         }
 
         bool useWeights = true;

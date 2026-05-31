@@ -284,8 +284,21 @@ public class Enemy : MonoBehaviour
 
         if (GameManager.Instance != null)
         {
+            if (GameManager.Instance.IsDemoMode)
+            {
+                HandleDemoPlayerContact();
+                return;
+            }
+
             GameManager.Instance.GameOver();
         }
+    }
+
+    private void HandleDemoPlayerContact()
+    {
+        MakeHarmless();
+        float delay = PlayDeathAnimationIfAvailable();
+        Destroy(gameObject, Mathf.Max(delay, 0.1f));
     }
 
     // ──────────────────────────────────────────────────────────────────────────

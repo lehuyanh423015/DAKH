@@ -14,6 +14,11 @@ public class MainMenuManager : MonoBehaviour
     [Tooltip("If true, logs actions in the console.")]
     private bool logActions = true;
 
+    [Header("Demo (Phase 25)")]
+    [SerializeField]
+    [Tooltip("Optional reference to the Demo Gameplay Root. Disabled before scene load to ensure clean transition.")]
+    private GameObject demoGameplayRoot;
+
     /// <summary>
     /// Loads the gameplay scene. Hook this up to the Play Button's OnClick event.
     /// </summary>
@@ -26,6 +31,11 @@ public class MainMenuManager : MonoBehaviour
         }
 
         if (logActions) Debug.Log($"MainMenuManager: Loading scene '{gameplaySceneName}'...");
+
+        if (demoGameplayRoot != null)
+        {
+            demoGameplayRoot.SetActive(false);
+        }
 
         // Phase 24: Ensure time scale is restored when starting a new game.
         Time.timeScale = 1f;

@@ -44,6 +44,16 @@ public class DifficultyManager : MonoBehaviour
              "Higher = faster ramp. Recommended: 0.05 (5% per second).")]
     [SerializeField] private float difficultyIncreaseRate = 0.05f;
 
+    [Header("Demo Mode (Phase 25)")]
+    [Tooltip("If true and GameManager is in Demo Mode, override scaling with fixed values.")]
+    [SerializeField] private bool useDemoDifficultyOverride = true;
+    
+    [Tooltip("Fixed enemy speed for Demo Mode.")]
+    [SerializeField] private float demoEnemySpeed = 2.2f;
+    
+    [Tooltip("Fixed spawn interval for Demo Mode.")]
+    [SerializeField] private float demoSpawnInterval = 1.4f;
+
     [Header("Debug Logging")]
     [Tooltip("Enable periodic difficulty logging to the Console.")]
     [SerializeField] private bool logDifficulty = true;
@@ -69,15 +79,31 @@ public class DifficultyManager : MonoBehaviour
     /// Move speed enemies should use right now.
     /// Increases from baseEnemySpeed up to maxEnemySpeed.
     /// </summary>
-    public float CurrentEnemySpeed =>
-        Mathf.Clamp(baseEnemySpeed * DifficultyMultiplier, baseEnemySpeed, maxEnemySpeed);
+    public float CurrentEnemySpeed
+    {
+        get
+        {
+            if (GameManager.Instance != null && GameManager.Instance.IsDemoMode && useDemoDifficultyOverride)
+                return demoEnemySpeed;
+                
+            return Mathf.Clamp(baseEnemySpeed * DifficultyMultiplier, baseEnemySpeed, maxEnemySpeed);
+        }
+    }
 
     /// <summary>
     /// Spawn interval EnemySpawner should use right now.
     /// Decreases from baseSpawnInterval down to minSpawnInterval.
     /// </summary>
-    public float CurrentSpawnInterval =>
-        Mathf.Clamp(baseSpawnInterval / DifficultyMultiplier, minSpawnInterval, baseSpawnInterval);
+    public float CurrentSpawnInterval
+    {
+        get
+        {
+            if (GameManager.Instance != null && GameManager.Instance.IsDemoMode && useDemoDifficultyOverride)
+                return demoSpawnInterval;
+                
+            return Mathf.Clamp(baseSpawnInterval / DifficultyMultiplier, minSpawnInterval, baseSpawnInterval);
+        }
+    }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle

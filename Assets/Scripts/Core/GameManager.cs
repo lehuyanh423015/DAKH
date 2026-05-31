@@ -28,6 +28,12 @@ using UnityEngine;
 /// Scene setup:
 ///   Attach this script to the "GameManager" empty GameObject in MainScene.
 /// </summary>
+public enum GameMode
+{
+    Normal,
+    Demo
+}
+
 public class GameManager : MonoBehaviour
 {
     // ──────────────────────────────────────────────────────────────────────────
@@ -50,8 +56,12 @@ public class GameManager : MonoBehaviour
     public event System.Action<int, int> OnGameOverEvent;
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Inspector fields  (Phase 6)
+    // Inspector fields  (Phase 6 & Phase 25)
     // ──────────────────────────────────────────────────────────────────────────
+
+    [Header("Game Mode (Phase 25)")]
+    [SerializeField] private GameMode gameMode = GameMode.Normal;
+
 
     [Tooltip("Seconds after the last successful hit before the combo expires. Recommended: 1.0.")]
     [SerializeField] private float comboWindowDuration = 1.0f;
@@ -81,6 +91,9 @@ public class GameManager : MonoBehaviour
     // ──────────────────────────────────────────────────────────────────────────
     // State
     // ──────────────────────────────────────────────────────────────────────────
+
+    public bool IsDemoMode => gameMode == GameMode.Demo;
+    public GameMode CurrentGameMode => gameMode;
 
     /// <summary>True once GameOver() has been called.</summary>
     public bool IsGameOver { get; private set; } = false;
@@ -250,6 +263,13 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         if (IsGameOver) return;
+
+        if (IsDemoMode)
+        {
+            if (logCombat) Debug.Log("Demo Mode: Player hit by enemy. Resetting combo, ignoring GameOver.");
+            ResetCombo();
+            return;
+        }
 
         IsGameOver = true;
 
