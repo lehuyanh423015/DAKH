@@ -2,17 +2,21 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Applies the final left-side MainMenu layout while keeping the gameplay demo visible.
+/// Deprecated helper for old automatic MainMenu layout.
+/// Runtime layout is disabled by default because MainMenu panels are now positioned manually.
 /// </summary>
 public class FinalMenuLayoutApplier : MonoBehaviour
 {
     [SerializeField] private RectTransform mainPanel;
     [SerializeField] private RectTransform settingsPanel;
-    [SerializeField] private bool applyOnStart = true;
+    [SerializeField] private bool applyLayoutAtRuntime = false;
+    [SerializeField] private bool disableMainPanelBackgroundImage = true;
 
     private void Start()
     {
-        if (applyOnStart)
+        DisableMainPanelBackgroundImageIfNeeded();
+
+        if (applyLayoutAtRuntime)
         {
             ApplyLayout();
         }
@@ -20,6 +24,11 @@ public class FinalMenuLayoutApplier : MonoBehaviour
 
     public void ApplyLayout()
     {
+        if (!applyLayoutAtRuntime)
+        {
+            return;
+        }
+
         ApplyMainPanelLayout();
         ApplySettingsPanelLayout();
     }
@@ -28,18 +37,20 @@ public class FinalMenuLayoutApplier : MonoBehaviour
     {
         if (mainPanel == null) return;
 
-        mainPanel.anchorMin = new Vector2(0f, 0.5f);
-        mainPanel.anchorMax = new Vector2(0f, 0.5f);
-        mainPanel.pivot = new Vector2(0.5f, 0.5f);
-        mainPanel.sizeDelta = new Vector2(420f, 560f);
-        mainPanel.anchoredPosition = new Vector2(260f, 0f);
+        DisableMainPanelBackgroundImageIfNeeded();
+    }
+
+    private void DisableMainPanelBackgroundImageIfNeeded()
+    {
+        if (!disableMainPanelBackgroundImage || mainPanel == null)
+        {
+            return;
+        }
 
         Image panelImage = mainPanel.GetComponent<Image>();
         if (panelImage != null)
         {
-            Color color = panelImage.color;
-            color.a = 0f;
-            panelImage.color = color;
+            panelImage.enabled = false;
         }
 
         UIPanelStyler panelStyler = mainPanel.GetComponent<UIPanelStyler>();
@@ -52,11 +63,5 @@ public class FinalMenuLayoutApplier : MonoBehaviour
     private void ApplySettingsPanelLayout()
     {
         if (settingsPanel == null) return;
-
-        settingsPanel.anchorMin = new Vector2(0.5f, 0.5f);
-        settingsPanel.anchorMax = new Vector2(0.5f, 0.5f);
-        settingsPanel.pivot = new Vector2(0.5f, 0.5f);
-        settingsPanel.sizeDelta = new Vector2(620f, 620f);
-        settingsPanel.anchoredPosition = Vector2.zero;
     }
 }

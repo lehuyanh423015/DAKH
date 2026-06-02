@@ -45,6 +45,12 @@ public class GameUI : MonoBehaviour
     [Tooltip("TextMeshPro text that shows the current combo. Example: 'Combo: 3'")]
     [SerializeField] private TextMeshProUGUI comboText;
 
+    [Tooltip("Optional TextMeshPro text that shows the saved highest score. Example: 'Best Score: 1200'")]
+    [SerializeField] private TextMeshProUGUI highScoreText;
+
+    [Tooltip("Optional TextMeshPro text that shows the saved highest combo. Example: 'Best Combo: 18'")]
+    [SerializeField] private TextMeshProUGUI highComboText;
+
     [Tooltip("TextMeshPro text that shows the current shield status. Example: 'Shield: READY'")]
     [SerializeField] private TextMeshProUGUI shieldText;
 
@@ -84,6 +90,7 @@ public class GameUI : MonoBehaviour
         {
             GameManager.Instance.OnScoreComboChanged += HandleScoreComboChanged;
             GameManager.Instance.OnComboShieldChanged += HandleComboShieldChanged;
+            GameManager.Instance.OnHighScoreComboChanged += HandleHighScoreComboChanged;
             GameManager.Instance.OnGameOverEvent     += HandleGameOver;
         }
         else
@@ -108,6 +115,7 @@ public class GameUI : MonoBehaviour
         if (GameManager.Instance != null)
         {
             UpdateComboShieldText(GameManager.Instance.ComboShields);
+            UpdateHighScoreComboText(GameManager.Instance.HighScore, GameManager.Instance.HighCombo);
         }
 
         // Hide the Game Over panel until the game actually ends.
@@ -129,6 +137,7 @@ public class GameUI : MonoBehaviour
         {
             GameManager.Instance.OnScoreComboChanged -= HandleScoreComboChanged;
             GameManager.Instance.OnComboShieldChanged -= HandleComboShieldChanged;
+            GameManager.Instance.OnHighScoreComboChanged -= HandleHighScoreComboChanged;
             GameManager.Instance.OnGameOverEvent     -= HandleGameOver;
         }
     }
@@ -151,6 +160,14 @@ public class GameUI : MonoBehaviour
     private void HandleComboShieldChanged(int comboShields)
     {
         UpdateComboShieldText(comboShields);
+    }
+
+    /// <summary>
+    /// Called by GameManager whenever saved highest score or highest combo changes.
+    /// </summary>
+    private void HandleHighScoreComboChanged(int highScore, int highCombo)
+    {
+        UpdateHighScoreComboText(highScore, highCombo);
     }
 
     /// <summary>
@@ -232,6 +249,23 @@ public class GameUI : MonoBehaviour
         if (shieldFlashEffect != null)
         {
             shieldFlashEffect.PlayFlash();
+        }
+    }
+
+    /// <summary>
+    /// Updates optional high score and high combo HUD text.
+    /// Safe to call even if the references are not assigned yet.
+    /// </summary>
+    private void UpdateHighScoreComboText(int highScore, int highCombo)
+    {
+        if (highScoreText != null)
+        {
+            highScoreText.text = "Best Score: " + highScore;
+        }
+
+        if (highComboText != null)
+        {
+            highComboText.text = "Best Combo: " + highCombo;
         }
     }
 

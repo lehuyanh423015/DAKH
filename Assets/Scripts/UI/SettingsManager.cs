@@ -27,7 +27,6 @@ public class SettingsManager : MonoBehaviour
     private static readonly (int width, int height)[] AvailableResolutions =
     {
         (1280, 720),
-        (1600, 900),
         (1920, 1080),
     };
 

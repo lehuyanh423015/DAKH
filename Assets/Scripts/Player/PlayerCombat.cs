@@ -297,6 +297,8 @@ public class PlayerCombat : MonoBehaviour
 
         foreach (Enemy enemy in allEnemies)
         {
+            if (enemy == null || !enemy.CanReceiveHit) continue;
+
             float enemyX = enemy.transform.position.x;
 
             bool isOnCorrectSide =

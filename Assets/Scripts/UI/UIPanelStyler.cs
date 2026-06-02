@@ -10,6 +10,7 @@ public class UIPanelStyler : MonoBehaviour
     [SerializeField] private Image panelImage;
     [SerializeField] private Color panelColor = new Color(0.02f, 0.04f, 0.08f, 0.72f);
     [SerializeField] private bool applyOnStart = true;
+    [SerializeField] private bool addImageIfMissing = true;
 
     private void Awake()
     {
@@ -43,7 +44,15 @@ public class UIPanelStyler : MonoBehaviour
 
         if (panelImage == null)
         {
-            panelImage = gameObject.AddComponent<Image>();
+            if (addImageIfMissing && !IsMainPanel())
+            {
+                panelImage = gameObject.AddComponent<Image>();
+            }
         }
+    }
+
+    private bool IsMainPanel()
+    {
+        return string.Equals(gameObject.name, "MainPanel", System.StringComparison.OrdinalIgnoreCase);
     }
 }

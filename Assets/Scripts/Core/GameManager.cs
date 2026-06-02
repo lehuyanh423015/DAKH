@@ -55,6 +55,9 @@ public class GameManager : MonoBehaviour
     /// <summary>Fired once when the game ends. Parameters: (finalScore, finalCombo).</summary>
     public event System.Action<int, int> OnGameOverEvent;
 
+    /// <summary>Fired when persistent high score or high combo changes. Parameters: (highScore, highCombo).</summary>
+    public event System.Action<int, int> OnHighScoreComboChanged;
+
     // ──────────────────────────────────────────────────────────────────────────
     // Inspector fields  (Phase 6 & Phase 25)
     // ──────────────────────────────────────────────────────────────────────────
@@ -88,6 +91,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("If true, logs hit, miss, and combo timeout events.")]
     [SerializeField] private bool logCombat = false;
 
+    private const string HighScorePlayerPrefsKey = "HighScore";
+    private const string HighComboPlayerPrefsKey = "HighCombo";
+
     // ──────────────────────────────────────────────────────────────────────────
     // State
     // ──────────────────────────────────────────────────────────────────────────
@@ -103,6 +109,12 @@ public class GameManager : MonoBehaviour
 
     /// <summary>Current consecutive-hit streak.</summary>
     public int Combo { get; private set; } = 0;
+
+    /// <summary>Best score saved on this machine.</summary>
+    public int HighScore { get; private set; } = 0;
+
+    /// <summary>Best combo saved on this machine.</summary>
+    public int HighCombo { get; private set; } = 0;
 
     /// <summary>Exposes the combo window so UI or other systems can read it.</summary>
     public float ComboWindowDuration => comboWindowDuration;
@@ -131,6 +143,8 @@ public class GameManager : MonoBehaviour
             return;
         }
         Instance = this;
+
+        LoadHighStats();
     }
 
     private void Update()
@@ -190,6 +204,8 @@ public class GameManager : MonoBehaviour
 
         if (logCombat) Debug.Log($"Hit registered! Combo: {Combo}");
 
+        TryUpdateHighCombo();
+
         // Check for shield gain (Phase 15)
         if (Combo >= comboShieldThreshold && comboShields < maxComboShields)
         {
@@ -213,6 +229,8 @@ public class GameManager : MonoBehaviour
 
         int scoreGain = baseScore + (Combo * 10);
         Score += scoreGain;
+
+        TryUpdateHighScore();
 
         if (logCombat) Debug.Log($"Enemy defeated! Score: {Score}, Combo: {Combo}, Gain: {scoreGain}");
 
@@ -280,6 +298,8 @@ public class GameManager : MonoBehaviour
         {
             Debug.Log($"Survival Time: {sessionTime:0.00}s");
         }
+        Debug.Log($"High Score: {HighScore}");
+        Debug.Log($"High Combo: {HighCombo}");
 
         comboShields = 0;
         OnComboShieldChanged?.Invoke(comboShields);
@@ -305,5 +325,33 @@ public class GameManager : MonoBehaviour
         if (logCombat) Debug.Log("Combo Shield consumed!");
         OnComboShieldChanged?.Invoke(comboShields);
         return true;
+    }
+
+    private void LoadHighStats()
+    {
+        HighScore = PlayerPrefs.GetInt(HighScorePlayerPrefsKey, 0);
+        HighCombo = PlayerPrefs.GetInt(HighComboPlayerPrefsKey, 0);
+    }
+
+    private void TryUpdateHighScore()
+    {
+        if (IsDemoMode) return;
+        if (Score <= HighScore) return;
+
+        HighScore = Score;
+        PlayerPrefs.SetInt(HighScorePlayerPrefsKey, HighScore);
+        PlayerPrefs.Save();
+        OnHighScoreComboChanged?.Invoke(HighScore, HighCombo);
+    }
+
+    private void TryUpdateHighCombo()
+    {
+        if (IsDemoMode) return;
+        if (Combo <= HighCombo) return;
+
+        HighCombo = Combo;
+        PlayerPrefs.SetInt(HighComboPlayerPrefsKey, HighCombo);
+        PlayerPrefs.Save();
+        OnHighScoreComboChanged?.Invoke(HighScore, HighCombo);
     }
 }

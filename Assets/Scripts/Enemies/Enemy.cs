@@ -226,6 +226,8 @@ public class Enemy : MonoBehaviour
     public int               MaxHealth     => maxHealth;
     /// <summary>True once MakeHarmless() has been called (health hit 0). Enemy cannot kill or block lanes.</summary>
     public bool              IsDefeated    => isDefeated;
+    /// <summary>True only while this enemy is a valid target for a player attack.</summary>
+    public bool              CanReceiveHit => !isDefeated && !isSwitchingSide;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Unity lifecycle
